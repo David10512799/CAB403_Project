@@ -2,15 +2,15 @@
 #include <stdlib.h>
 
 //Function declarations
-void AddSum(void *ptr); void Divide(void *ptr);
+void AddSum()
+{
+    printf("DAVID\n");
+}
 
 int main(int argc, char **argv){
 
-    
+    AddSum();
 
     return 0;
 }
 
-void AddSum(void *ptr){
-    // Write your code
-}

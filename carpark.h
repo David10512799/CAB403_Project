@@ -1,8 +1,14 @@
-
-#ifndef PTHREAD_H
-#define PTHREAD_H
-#include <pthread.h>
+#ifndef HEADERS
+    #define HEADERS
+    #include <sys/mman.h> 
+    #include <sys/stat.h> 
+    #include <fcntl.h> 
+    #include <pthread.h> 
+    #include <stdbool.h> 
+    #include <unistd.h>
 #endif
+
+#define SHARE_NAME "PARKING"
 
 typedef struct gate gate_t;
 struct gate
@@ -76,3 +82,46 @@ struct carpark
     level_t level4;
     level_t level5;
 };
+
+typedef struct shared_carpark shared_carpark_t;
+struct shared_carpark
+{
+    const char* name;
+    int fd;
+    carpark_t* data;
+};
+
+void init_carpark(shared_carpark_t* carpark) 
+{
+
+    shm_unlink(SHARE_NAME);
+
+    if ((carpark->fd = shm_open(SHARE_NAME, O_CREAT | O_RDWR , 0666)) < 0 ){
+        perror("shm_open");
+        printf("Failed to create shared memory object for Carpark\n");
+        exit(1);
+    }
+
+    if (ftruncate(carpark->fd, sizeof(carpark_t))){
+        perror("ftruncate");
+        printf("Failed to initialise size of shared memory object for Carpark\n");
+        exit(1);
+    }
+
+    if  ((carpark->data = mmap(0, sizeof(carpark_t), PROT_READ | PROT_WRITE, MAP_SHARED, carpark->fd, 0)) == (void *)-1 ){
+        perror("mmap");
+        printf("Failed to map the shared memory for Carpark");
+        exit(1);
+    }
+
+}
+
+void get_carpark(shared_carpark_t* carpark)
+{
+    if ((carpark->fd = shm_open(SHARE_NAME, O_RDWR, 0666)) < 0)
+    {
+        perror("shm_open");
+        printf("Carpark data does not exist\n");
+        exit(1);
+    }
+}

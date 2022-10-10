@@ -1,19 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "carpark.h"
+
 #define NUM_ENTRIES 5
 #define NUM_EXITS 2
 #define NUM_LEVELS 3
 #define CARS_PER_LEVEL 20
 
+shared_carpark_t carpark;
+
+// shm_open() returns -1 on failure.
+// ENOENT An attempt was made to shm_open() to a name that did not exist, and O_CREAT was not specified
 
 //Function declarations
-void GenerateGUI(); char *GateStatus(char code);
-void OpenGate(); void CloseGate(); 
+void GenerateGUI(); 
+char *GateStatus(char code); void OpenGate(); void CloseGate(); 
 void GenerateBill();
 void ScreenController();
 
+
+
 int main(int argc, char **argv){
+
+    get_carpark(&carpark);
 
     GenerateGUI();
 

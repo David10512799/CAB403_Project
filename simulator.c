@@ -74,6 +74,16 @@ size_t djb_hash(char *c);
 bool htab_insert_plates();
 
 void init();
+#include <stdbool.h>
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include "carpark.h"
+
+shared_carpark_t carpark;
+
 
 int main(int argc, char **argv){
     init();
@@ -203,4 +213,11 @@ void init(){
     
 }
 };
+
+    init_carpark(&carpark);
+
+    return 0;
+}
+
+
 

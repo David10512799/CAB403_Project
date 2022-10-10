@@ -11,9 +11,6 @@
 
 #include "carpark.h"
 
-shared_carpark_t carpark;
-
-
 //Car Simulation
 
 //Declare function that builds the LPR (License plate reader)
@@ -50,41 +47,7 @@ void updateTemp();
 //Create a license plate that is either unique or matches with a license plate in the plates.txt file.
 char createCar();
 
-#define NUM_BUCKETS 20
-
-
-typedef struct item item_t;
-struct item
-{
-    char *value;
-    void *next;
-};
-
-
-typedef struct htab htab_t;
-struct htab
-{
-    item_t *buckets;
-    size_t size;
-};
-
-htab_t h;
-
-bool htab_add(size_t key, char *value);
-
-bool htab_init();
-
-size_t htab_index(htab_t *h, size_t key);
-
-item_t *htab_bucket(htab_t *h, int key);
-
-size_t djb_hash(char *c);
-
-bool htab_insert_plates();
-
-void init();
-
-
+shared_carpark_t carpark;
 
 int main(int argc, char **argv){
 
@@ -96,30 +59,6 @@ int main(int argc, char **argv){
 }
 
 
-
-
-// bool htab_insert_plates()
-//     {
-//     FILE* input_file = fopen("plates.txt", "r");
-//     int num;
-//     int number_plates;
-
-//     if (input_file == NULL)
-//     {
-//         fprintf(stderr, "Error: failed to open file %s", "plates.txt");
-//         exit(1);
-//     }
-
-//     char plate[6];
-//     while(fscanf(input_file, "%s", plate) != EOF)
-//     {
-//         size_t key = djb_hash(plate) % h.size;
-//         htab_add(key, plate);
-//     }
-
-//     fclose(input_file);
-//     return true;
-//     }
 
 
 

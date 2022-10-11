@@ -6,6 +6,8 @@
     #include <pthread.h> 
     #include <stdbool.h> 
     #include <unistd.h>
+    #include <stdlib.h>
+    #include <stdio.h>
 #endif
 
 #define SHARE_NAME "PARKING"
@@ -22,6 +24,8 @@
 #define FULL 'F'
 
 extern int errno;
+
+
 
 typedef struct gate gate_t;
 struct gate
@@ -115,38 +119,62 @@ struct shared_carpark
 void init_carpark_values(carpark_t* park)
 {
 
+    pthread_mutexattr_t mutex_attr;
+    if (pthread_mutexattr_init(&mutex_attr) != 0)
+    {
+        perror("pthread_mutexattr_init");
+        exit(1);
+    }
+    if ( pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED) != 0)
+    {
+        perror("pthread_mutexattr_setpshared");
+        exit(1);
+    }
+
+    pthread_condattr_t cond_attr;
+    if (pthread_condattr_init(&cond_attr) != 0)
+    {
+        perror("pthread_mutexattr_init");
+        exit(1);
+    }
+    if ( pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED) != 0)
+    {
+        perror("pthread_mutexattr_setpshared");
+        exit(1);
+    }    
+
     for (int i = 0; i < 5; i++)
     {
         // ENTRANCES
         park->entrance[i].gate.status = 'C';
-        pthread_mutex_init(&park->entrance[i].gate.mutex, PTHREAD_PROCESS_SHARED);
-        pthread_cond_init(&park->entrance[i].gate.condition, PTHREAD_PROCESS_SHARED);
+        pthread_mutex_init(&park->entrance[i].gate.mutex, &mutex_attr);
+        pthread_cond_init(&park->entrance[i].gate.condition, &cond_attr);
 
         
         park->entrance[i].LPR.plate = EMPTY_LPR;
-        pthread_mutex_init(&park->entrance[i].LPR.mutex, PTHREAD_PROCESS_SHARED);
-        pthread_cond_init(&park->entrance[i].LPR.condition, PTHREAD_PROCESS_SHARED);
+        pthread_mutex_init(&park->entrance[i].LPR.mutex, &mutex_attr);
+        pthread_cond_init(&park->entrance[i].LPR.condition, &cond_attr);
 
-        pthread_mutex_init(&park->entrance[i].sign.mutex, PTHREAD_PROCESS_SHARED);
-        pthread_cond_init(&park->entrance[i].sign.condition, PTHREAD_PROCESS_SHARED);        
+        pthread_mutex_init(&park->entrance[i].sign.mutex, &mutex_attr);
+        pthread_cond_init(&park->entrance[i].sign.condition, &cond_attr);        
 
         // EXITS
         park->exit[i].gate.status = 'C';
-        pthread_mutex_init(&park->exit[i].gate.mutex, PTHREAD_PROCESS_SHARED);
-        pthread_cond_init(&park->exit[i].gate.condition, PTHREAD_PROCESS_SHARED);
+        pthread_mutex_init(&park->exit[i].gate.mutex, &mutex_attr);
+        pthread_cond_init(&park->exit[i].gate.condition, &cond_attr);
 
         park->exit[i].LPR.plate = EMPTY_LPR;
-        pthread_mutex_init(&park->exit[i].LPR.mutex, PTHREAD_PROCESS_SHARED);
-        pthread_cond_init(&park->exit[i].LPR.condition, PTHREAD_PROCESS_SHARED);
+        pthread_mutex_init(&park->exit[i].LPR.mutex, &mutex_attr);
+        pthread_cond_init(&park->exit[i].LPR.condition, &cond_attr);
 
         // LEVELS
         park->level[i].LPR.plate = EMPTY_LPR;
-        pthread_mutex_init(&park->level[i].LPR.mutex, PTHREAD_PROCESS_SHARED);
-        pthread_cond_init(&park->level[i].LPR.condition, PTHREAD_PROCESS_SHARED);
+        pthread_mutex_init(&park->level[i].LPR.mutex, &mutex_attr);
+        pthread_cond_init(&park->level[i].LPR.condition, &cond_attr);
 
         park->level[i].temperature.alarm = 0;
         park->level[i].temperature.sensor = 0;
-
+        
     }
 }
 

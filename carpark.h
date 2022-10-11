@@ -9,6 +9,17 @@
 #endif
 
 #define SHARE_NAME "PARKING"
+#define NUM_ENTRIES 5
+#define NUM_EXITS 5
+#define NUM_LEVELS 5
+#define CARS_PER_LEVEL 20
+#define EMPTY_LPR ""
+#define RAISING 'R'
+#define LOWERING 'L'
+#define CLOSED 'C'
+#define OPEN 'O'
+#define DENIED 'X'
+#define FULL 'F'
 
 extern int errno;
 
@@ -106,29 +117,30 @@ void init_carpark_values(carpark_t* park)
 
     for (int i = 0; i < 5; i++)
     {
+        // ENTRANCES
         park->entrance[i].gate.status = 'C';
         pthread_mutex_init(&park->entrance[i].gate.mutex, PTHREAD_PROCESS_SHARED);
         pthread_cond_init(&park->entrance[i].gate.condition, PTHREAD_PROCESS_SHARED);
 
         
-        park->entrance[i].LPR.plate = "";
+        park->entrance[i].LPR.plate = EMPTY_LPR;
         pthread_mutex_init(&park->entrance[i].LPR.mutex, PTHREAD_PROCESS_SHARED);
         pthread_cond_init(&park->entrance[i].LPR.condition, PTHREAD_PROCESS_SHARED);
 
-        park->entrance[i].sign.display = '-';
         pthread_mutex_init(&park->entrance[i].sign.mutex, PTHREAD_PROCESS_SHARED);
         pthread_cond_init(&park->entrance[i].sign.condition, PTHREAD_PROCESS_SHARED);        
 
-
+        // EXITS
         park->exit[i].gate.status = 'C';
         pthread_mutex_init(&park->exit[i].gate.mutex, PTHREAD_PROCESS_SHARED);
         pthread_cond_init(&park->exit[i].gate.condition, PTHREAD_PROCESS_SHARED);
 
-        park->exit[i].LPR.plate = "";
+        park->exit[i].LPR.plate = EMPTY_LPR;
         pthread_mutex_init(&park->exit[i].LPR.mutex, PTHREAD_PROCESS_SHARED);
         pthread_cond_init(&park->exit[i].LPR.condition, PTHREAD_PROCESS_SHARED);
 
-        park->level[i].LPR.plate = "";
+        // LEVELS
+        park->level[i].LPR.plate = EMPTY_LPR;
         pthread_mutex_init(&park->level[i].LPR.mutex, PTHREAD_PROCESS_SHARED);
         pthread_cond_init(&park->level[i].LPR.condition, PTHREAD_PROCESS_SHARED);
 

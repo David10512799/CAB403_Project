@@ -47,13 +47,18 @@ void updateTemp();
 //Create a license plate that is either unique or matches with a license plate in the plates.txt file.
 char createCar();
 
-shared_carpark_t carpark;
+
 
 int main(int argc, char **argv){
 
-    // init();
-    init_carpark(&carpark);
-
+    shared_carpark_t carpark;
+    
+    if (!init_carpark(&carpark))
+    {
+        printf(stderr, "Error initialising shared memory: %s\n", strerror(errno));
+    }
+    
+    
 
     return 0;
 }

@@ -9,8 +9,6 @@
 #define CARS_PER_LEVEL 20
 #define PLATE_LENGTH 7
 
-shared_carpark_t carpark;
-
 
 // An item inserted into a hash table.
 // As hash collisions can occur, multiple items can exist in one bucket.
@@ -32,9 +30,9 @@ struct htab
 
 
 //Function declarations
-void generate_GUI(); 
+void generate_GUI(carpark_t *data); 
 char *gate_status(char code); void open_gate(); void close_gate(); 
-void generate_bill();
+void generate_bill(char *plate, int useconds);
 void screen_controller();
 
 // HASHTABLE FUNCTIONS
@@ -54,7 +52,6 @@ void item_print(item_t *i)
 }
 
 
-
 int main(int argc, char **argv){
 
     //get_carpark(&carpark);
@@ -69,65 +66,87 @@ int main(int argc, char **argv){
     }
 
     htab_insert_plates(&h);
-    htab_print(&h);
+    
+    shared_carpark_t carpark;
 
-    //GenerateGUI();
+    get_carpark(&carpark);
+
+
+
+    pthread_t gui;
+    pthread_create(&gui, NULL, generate_GUI, &carpark.data);
+
+    
 
     return 0;
 
 }
 
-void generate_GUI()
+void generate_bill(char *plate, int useconds)
 {
-    printf("\033[2J"); // Clear screen
+    float cost = useconds * 0.05;
 
-    printf(
-    "╔═══════════════════════════════════════════════╗\n"
-    "║                CARPARK SIMULATOR              ║    by DAVID AND DANIEL \n"
-    "╚═══════════════════════════════════════════════╝\n"
-    );
-    
-    printf("\n\e[1mTotal Revenue:\e[m $0.00\n\n");
+    FILE* bill = fopen("billing.txt", "a+");
 
+    fprintf(bill, "%s $.2f", plate, cost);
 
-    printf("\n\e[1mLevel\tCapacity\tLPR\t\tTemp (C)\e[m\n");
-    printf("══════════════════════════════════════════════════════════════════\n\n");
-    for (int i = 1; i <= NUM_LEVELS; i++)
+    fclose(bill);
+}
+
+void generate_GUI( carpark_t *data )
+{
+    while (true)
     {
-        printf("%d\t", i);
-        printf("%d/%d\t\t", i, CARS_PER_LEVEL);
-        printf("%s\t\t", "123ABC");
-        printf("%d\t\t", 27);
+        usleep(50);
+        printf("\033[2J"); // Clear screen
+
+        printf(
+        "╔═══════════════════════════════════════════════╗\n"
+        "║                CARPARK SIMULATOR              ║    by DAVID AND DANIEL \n"
+        "╚═══════════════════════════════════════════════╝\n"
+        );
+        
+        printf("\n\e[1mTotal Revenue:\e[m $0.00\n\n");
+
+
+        printf("\n\e[1mLevel\tCapacity\tLPR\t\tTemp (C)\e[m\n");
+        printf("══════════════════════════════════════════════════════════════════\n\n");
+        for (int i = 1; i <= NUM_LEVELS; i++)
+        {
+            printf("%d\t", i);
+            printf("%d/%d\t\t", i, CARS_PER_LEVEL);
+            printf("%s\t\t", "123ABC");
+            printf("%d\t\t", 27);
+            printf("\n");
+        }
+
+        printf("\n");
+
+        printf("\n\e[1mEntry\tGate\t\tLPR\t\tDisplay\e[m\n");
+        printf("══════════════════════════════════════════════════════════════════\n\n");
+        for (int i = 1; i <= NUM_ENTRIES; i++)
+        {
+            printf("%d\t", i);
+            printf("%s\t\t", gate_status('C'));
+            printf("%s\t\t", "123ABC");
+            printf("%c\t", '3');
+            printf("\n");
+        }
+
+        printf("\n");
+        
+        printf("\n\e[1mExit\tGate\t\tLPR\e[m\n");
+        printf("══════════════════════════════════════════════════════════════════\n\n");
+        for (int i = 1; i <= NUM_ENTRIES; i++)
+        {
+            printf("%d\t", i);
+            printf("%s\t", gate_status('L'));
+            printf("%s\t", "123ABC");
+            printf("\n");
+        }
+
         printf("\n");
     }
-
-    printf("\n");
-
-    printf("\n\e[1mEntry\tGate\t\tLPR\t\tDisplay\e[m\n");
-    printf("══════════════════════════════════════════════════════════════════\n\n");
-    for (int i = 1; i <= NUM_ENTRIES; i++)
-    {
-        printf("%d\t", i);
-        printf("%s\t\t", gate_status('C'));
-        printf("%s\t\t", "123ABC");
-        printf("%c\t", '3');
-        printf("\n");
-    }
-
-    printf("\n");
-    
-    printf("\n\e[1mExit\tGate\t\tLPR\e[m\n");
-    printf("══════════════════════════════════════════════════════════════════\n\n");
-    for (int i = 1; i <= NUM_ENTRIES; i++)
-    {
-        printf("%d\t", i);
-        printf("%s\t", gate_status('L'));
-        printf("%s\t", "123ABC");
-        printf("\n");
-    }
-
-    printf("\n");
-
 }
 
 char *gate_status(char code)
@@ -153,7 +172,6 @@ char *gate_status(char code)
 
 }
 
-
 bool htab_init(htab_t *h, size_t n)
 {
     // TODO: implement this function
@@ -162,7 +180,6 @@ bool htab_init(htab_t *h, size_t n)
     // calloc guarantess all that memory is initialised to zero
     return h->buckets != NULL;
 }
-
 
 bool htab_insert_plates(htab_t *h)
     {

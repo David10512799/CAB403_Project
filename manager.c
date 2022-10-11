@@ -3,20 +3,21 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/time.h>
  
 #include "carpark.h"
 #include "plates.h"
 
 size_t buckets = 40;
-htab_t h;
+htab_t verified_cars;
 
 
 typedef struct car car_t;
 struct car
 {
     char *plate;
-    int16_t time;
     int current_level;
+    struct timeval entry_time;
 };
 
 typedef struct car_list car_list_t;
@@ -34,8 +35,9 @@ pthread_cond_t full, empty;
 void generate_GUI(carpark_t *data); 
 char *gate_status(char code); void open_gate(); void close_gate(); 
 void generate_bill(char *plate, int useconds);
-void generate_car(char *plate);
+void generate_car(char *plate, int level);
 char find_space();
+long long duration_ms(struct timeval start);
 
 // License plate Readers Monitor
 void *monitor_entry(void *arg); void *monitor_exit(void *arg); void *monitor_level(void *arg);
@@ -51,14 +53,18 @@ int main(int argc, char **argv){
 
     // Initialise hashtable and insert plates from "plates.txt"
     
-    if (!htab_init(&h, buckets))
+    if (!htab_init(&verified_cars, buckets))
     {
         printf("failed to initialise hash table\n");
         return EXIT_FAILURE;
     }
 
-    htab_insert_plates(&h);
+    htab_insert_plates(&verified_cars);
 
+    // Initialise the list of cars with all spaces remaining
+    for( int i = 0; i < NUM_LEVELS; i++){
+        list_cars[i].free_spaces = CARS_PER_LEVEL;
+    }
 
     // Begin monitoring Entrance License Plate Readers to detect Cars
     for( int i = 0; i < NUM_ENTRIES; i++){
@@ -79,8 +85,7 @@ int main(int argc, char **argv){
         pthread_create(&exit_LPR, NULL, monitor_exit, &carpark.data->exit[i].LPR);
     }
 
-
-    
+    while (true) sleep(10);
 
     return EXIT_SUCCESS;
 
@@ -135,9 +140,10 @@ void *monitor_entry(void *arg)
             pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
         
         // Read plate and determine if allowed in.
+        char *plate = entry->LPR.plate;
         char space;
 
-        if ( htab_search_value(&h, entry->LPR.plate) )
+        if ( htab_search_value(&verified_cars, plate) )
             space = find_space();
         else
             space = DENIED;
@@ -147,7 +153,7 @@ void *monitor_entry(void *arg)
         int level = (int)space - 48;
         if (0 < level && level < 6)
         {
-            //generate_car();
+            generate_car(plate, level);
             pthread_mutex_lock(&entry->gate.mutex);
             entry->gate.status = RAISING;
             pthread_cond_signal(&entry->gate.condition);
@@ -167,15 +173,30 @@ void *monitor_entry(void *arg)
 
 }
 
+// Find the level with the most spots remaining or return FULL
 char find_space()
 {
+    char retVal = FULL;
+    int level = 0;
 
-    return FULL;
+    for( int i = 1; i < NUM_LEVELS; i++){
+        level = list_cars[i].free_spaces > list_cars[i - 1].free_spaces ? i + 1 : i;
+    }
+
+    if (level != 0)
+        retVal = (char)level;
+
+    return retVal;
 }
 
-void generate_car(char *plate)
+void generate_car(char *plate, int level)
 {
-    pthread_t car_thread;
+    car_t car;
+    car.current_level = level;
+    car.plate = plate;
+    gettimeofday(&car.entry_time, NULL);
+
+    // add to hashtable
 
 }
 
@@ -269,3 +290,9 @@ char *gate_status(char code)
 
 }
 
+long long timeInMilliseconds(struct timeval start) {
+    struct timeval tv;
+
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+}

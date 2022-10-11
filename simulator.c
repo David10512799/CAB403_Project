@@ -55,7 +55,7 @@ int main(int argc, char **argv){
     
     if (!init_carpark(&carpark))
     {
-        printf(stderr, "Error initialising shared memory: %s\n", strerror(errno));
+        fprintf(stderr, "Error initialising shared memory: %s\n", strerror(errno));
     }
 
     // char **plates;

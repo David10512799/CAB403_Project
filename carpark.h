@@ -1,13 +1,14 @@
-#ifndef HEADERS
-    #define HEADERS
-    #include <sys/mman.h> 
-    #include <sys/stat.h> 
-    #include <fcntl.h> 
-    #include <pthread.h> 
-    #include <stdbool.h> 
-    #include <unistd.h>
-    #include <stdlib.h>
-    #include <stdio.h>
+#ifndef CARPARK_H
+#define CARPARK_H
+#include <sys/mman.h> 
+#include <sys/stat.h> 
+#include <fcntl.h> 
+#include <pthread.h> 
+#include <stdbool.h> 
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 #endif
 
 #define SHARE_NAME "PARKING"
@@ -24,8 +25,6 @@
 #define FULL 'F'
 
 extern int errno;
-
-
 
 typedef struct gate gate_t;
 struct gate

@@ -1,63 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <stdbool.h>
+#include <pthread.h>
+#include <string.h>
+ 
 #include "carpark.h"
+#include "plates.h"
 
-#define NUM_ENTRIES 5
-#define NUM_EXITS 5
-#define NUM_LEVELS 5
-#define CARS_PER_LEVEL 20
-#define PLATE_LENGTH 7
+size_t buckets = 40;
+htab_t h;
 
 
-// An item inserted into a hash table.
-// As hash collisions can occur, multiple items can exist in one bucket.
-// Therefore, each bucket is a linked list of items that hashes to that bucket.
-typedef struct item item_t;
-struct item
+typedef struct car car_t;
+struct car
 {
-    char value[PLATE_LENGTH];
-    item_t *next;
+    char *plate;
+    int16_t time;
+    int current_level;
 };
 
-// A hash table mapping a string to an integer.
-typedef struct htab htab_t;
-struct htab
+typedef struct car_list car_list_t;
+struct car_list
 {
-    item_t **buckets;
-    size_t size;
+    int free_spaces;
+    car_t cars[CARS_PER_LEVEL];
 };
 
+car_list_t list_cars[NUM_LEVELS];
+pthread_mutex_t list_lock;
+pthread_cond_t full, empty;
 
 //Function declarations
 void generate_GUI(carpark_t *data); 
 char *gate_status(char code); void open_gate(); void close_gate(); 
 void generate_bill(char *plate, int useconds);
-void screen_controller();
+void generate_car(char *plate);
+char find_space();
 
-// HASHTABLE FUNCTIONS
-bool htab_insert_plates(htab_t *h);
-bool htab_init(htab_t *h, size_t n);
-size_t htab_index(htab_t *h, char *key);
-item_t *htab_bucket(htab_t *h, char *key);
-size_t djb_hash(char *c);
-bool htab_add(htab_t *h,char *value);
-void htab_print(htab_t *h);
-void htab_search_value(htab_t *h, char *search);
+// License plate Readers Monitor
+void *monitor_entry(void *arg); void *monitor_exit(void *arg); void *monitor_level(void *arg);
 
 
-void item_print(item_t *i)
-{
-    printf("value=%s",i->value);
-}
 
 
 int main(int argc, char **argv){
 
-    //get_carpark(&carpark);
+    // Get shared memory object
+    shared_carpark_t carpark;
+    get_carpark(&carpark);
 
-    size_t buckets = 40;
-    htab_t h;
+    // Initialise hashtable and insert plates from "plates.txt"
     
     if (!htab_init(&h, buckets))
     {
@@ -66,19 +58,124 @@ int main(int argc, char **argv){
     }
 
     htab_insert_plates(&h);
+
+
+    // Begin monitoring Entrance License Plate Readers to detect Cars
+    for( int i = 0; i < NUM_ENTRIES; i++){
+        pthread_t entry_LPR;
+        pthread_create(&entry_LPR, NULL, monitor_entry, &carpark.data->entrance[i]);
+    }
+
+    // Begin monitoring Level License Plate Readers to detect Cars
+    for( int i = 0; i < NUM_LEVELS; i++){
+        pthread_t level_LPR;
+        pthread_create(&level_LPR, NULL, monitor_level, &carpark.data->level[i].LPR);
+    }
     
-    shared_carpark_t carpark;
+    // Begin monitoring Exit License Plate Readers to detect Cars
+    for ( int i = 0; i < NUM_EXITS; i++)
+    {
+        pthread_t exit_LPR;
+        pthread_create(&exit_LPR, NULL, monitor_exit, &carpark.data->exit[i].LPR);
+    }
 
-    get_carpark(&carpark);
-
-
-
-    pthread_t gui;
-    pthread_create(&gui, NULL, generate_GUI, &carpark.data);
 
     
 
-    return 0;
+    return EXIT_SUCCESS;
+
+}
+
+void *monitor_level(void *arg)
+{
+    LPR_t *lpr = (LPR_t *)arg;
+
+    for(;;)
+    {
+        // lock lpr mutex and wait for signal
+        pthread_mutex_lock(&lpr->mutex);
+        while (lpr->plate == EMPTY_LPR)
+            pthread_cond_wait(&lpr->condition, &lpr->mutex);
+
+        // Read plate
+
+        // unlock mutex
+        pthread_mutex_unlock(&lpr->mutex);
+    }
+}
+
+void *monitor_exit(void *arg)
+{
+    LPR_t *lpr = (LPR_t *)arg;
+
+    for(;;)
+    {
+        // lock lpr mutex and wait for signal
+        pthread_mutex_lock(&lpr->mutex);
+        while (lpr->plate == EMPTY_LPR)
+            pthread_cond_wait(&lpr->condition, &lpr->mutex);
+
+        // Read plate
+
+
+        // unlock lpr mutex 
+        pthread_mutex_unlock(&lpr->mutex);
+    }
+}
+
+void *monitor_entry(void *arg)
+{
+    entrance_t *entry = (entrance_t *)arg;
+
+    for (;;)
+    {
+        // lock lpr mutex and wait for signal
+        pthread_mutex_lock(&entry->LPR.mutex);
+        while (entry->LPR.plate == EMPTY_LPR)
+            pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
+        
+        // Read plate and determine if allowed in.
+        char space;
+
+        if ( htab_search_value(&h, entry->LPR.plate) )
+            space = find_space();
+        else
+            space = DENIED;
+
+
+        // Set gate to raising if level = 1 - 5
+        int level = (int)space - 48;
+        if (0 < level && level < 6)
+        {
+            //generate_car();
+            pthread_mutex_lock(&entry->gate.mutex);
+            entry->gate.status = RAISING;
+            pthread_cond_signal(&entry->gate.condition);
+            pthread_mutex_unlock(&entry->gate.mutex);
+        }
+
+        // Display entry status on sign
+        pthread_mutex_lock(&entry->sign.mutex);
+        entry->sign.display = level;
+        pthread_cond_signal(&entry->sign.condition);
+        pthread_mutex_unlock(&entry->sign.mutex);
+
+        // reset lpr unlock lpr mutex
+        entry->LPR.plate = EMPTY_LPR;
+        pthread_mutex_unlock(&entry->LPR.mutex);
+    }
+
+}
+
+char find_space()
+{
+
+    return FULL;
+}
+
+void generate_car(char *plate)
+{
+    pthread_t car_thread;
 
 }
 
@@ -172,112 +269,3 @@ char *gate_status(char code)
 
 }
 
-bool htab_init(htab_t *h, size_t n)
-{
-    // TODO: implement this function
-    h->size = n;
-    h->buckets = calloc(n, sizeof(item_t*)); // array of pointers, therefore no matter how large table grows, same amount of memory
-    // calloc guarantess all that memory is initialised to zero
-    return h->buckets != NULL;
-}
-
-bool htab_insert_plates(htab_t *h)
-    {
-    FILE* input_file = fopen("plates.txt", "r");
-
-    if (input_file == NULL)
-    {
-        fprintf(stderr, "Error: failed to open file %s", "plates.txt");
-        exit(1);
-    }
-
-    char plate[PLATE_LENGTH];
-    while( fscanf(input_file, "%s", plate) != EOF )
-    {
-        htab_add(h, plate);
-    }
-
-    fclose(input_file);
-    return true;
-}
-
-bool htab_add(htab_t *h, char *value)
-{
-    // TODO: implement this function
-
-    size_t index = htab_index(h, value);
-
-    item_t *new_item = malloc(sizeof(item_t));
-    if (new_item == NULL){
-        printf("Failed to allocate memory to new item\n");
-        return false;
-    }
-
-    sprintf(new_item->value, value);
-    new_item->next = h->buckets[index];
-
-    h->buckets[index] = new_item;
-
-}
-
-void htab_print(htab_t *h)
-{
-    printf("hash table with %d buckets\n", h->size);
-    for (size_t i = 0; i < h->size; ++i)
-    {
-        printf("bucket %d: ", i + 1);
-        if (h->buckets[i] == NULL)
-        {
-            printf("empty\n");
-        }
-        else
-        {
-            for (item_t *j = h->buckets[i]; j != NULL; j = j->next)
-            {
-                item_print(j);
-                if (j->next != NULL)
-                {
-                    printf(" -> ");
-                }
-            }
-            printf("\n");
-        }
-    }
-}
-
-size_t djb_hash(char *s)
-{
-    size_t hash = 5381;
-    int c;
-    while ((c = *s++) != '\0')
-    {
-        // hash = hash * 33 + c
-        hash = ((hash << 5) + hash) + c;
-    }
-    return hash;
-}
-
-// Calculate the offset for the bucket for key in hash table.
-size_t htab_index(htab_t *h, char *key)
-{
-    return djb_hash(key) % h->size;
-}
-
-// Find pointer to head of list for key in hash table.
-item_t *htab_bucket(htab_t *h, char *key)
-{
-    // TODO: implement this function (uses htab_index())
-    size_t index = htab_index(h, key);
-    return h->buckets[index];
-}
-
-void htab_search_value(htab_t *h, char *search)
-{
-    for (size_t i = 0; i < h->size; ++i)
-    {
-        for (item_t *bucket = h->buckets[i]; bucket != NULL; bucket = bucket->next) {
-            if (bucket->value == search) printf("Licence Plate %s has permission to enter", bucket->value);
-        }
-    }
-    printf("\n");
-}

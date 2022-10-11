@@ -57,8 +57,15 @@ int main(int argc, char **argv){
     {
         printf(stderr, "Error initialising shared memory: %s\n", strerror(errno));
     }
-    
-    
+
+    // char **plates;
+    // int platecount = 0;
+    // char plate[7];
+    // while(fscanf("plates.txt", "%s", plate) != EOF)
+    // {
+    //     plates[platecount] = malloc();
+    //     platecount++;
+    // }
 
     return 0;
 }

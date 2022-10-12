@@ -34,7 +34,7 @@ void *generate_bill(void *arg);
 void generate_car(char *plate, int level);
 char find_space();
 long long duration_ms(struct timeval start);
-void pause(int time);
+void pause_for(int time);
 void *delete_car(void *arg);
 
 // Monitors
@@ -100,7 +100,7 @@ int main(int argc, char **argv){
 
 #define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
 
-void pause(int time)
+void pause_for(int time)
 {
     usleep(TIMEX * time);
 }
@@ -119,7 +119,7 @@ void *monitor_gate(void *arg)
         if (gate->status == OPEN) // Not sure if this line is necessary?
         {    
         // delay for 20ms
-        pause(20);
+        pause_for(20);
         // Set the gate status to Lowering
         gate->status = LOWERING;
         }
@@ -185,7 +185,7 @@ void *monitor_exit(void *arg)
         // Bill car
         pthread_t bill;
         pthread_create(&bill, NULL, generate_bill, plate);
-        pthread_join(&bill, NULL);
+        pthread_join(bill, NULL);
         // Remove car from carpark
         pthread_t car;
         pthread_create(&car, NULL, delete_car, plate);

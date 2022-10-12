@@ -27,8 +27,10 @@ struct level_LPR_monitor
     LPR_t *level_LPR;
 };
 
+
+
 //Function declarations
-void generate_GUI(carpark_t *data); 
+void *generate_GUI(void *arg); 
 char *gate_status(char code); void open_gate(); void close_gate(); 
 void *generate_bill(void *arg);
 void generate_car(char *plate, int level);
@@ -44,11 +46,7 @@ void *monitor_gate(void *arg);
 
 
 
-int main(int argc, char **argv){
-
-    // Get shared memory object
-    shared_carpark_t carpark;
-    get_carpark(&carpark);
+int main(int argc, char **argv) {
 
     // Initialise hashtable and insert plates from "plates.txt"
     
@@ -59,6 +57,16 @@ int main(int argc, char **argv){
     }
 
     htab_insert_plates(&verified_cars);
+
+    // htab_print(&verified_cars);
+
+    // Get shared memory object
+    shared_carpark_t carpark;
+    get_carpark(&carpark);
+
+    // Generate GUI
+    pthread_t gui;
+    pthread_create(&gui, NULL, generate_GUI, &carpark);
 
     // Initialise the list of cars with all spaces remaining
     for( int i = 0; i < NUM_LEVELS; i++){
@@ -90,7 +98,7 @@ int main(int argc, char **argv){
         pthread_create(&exit_LPR, NULL, monitor_exit, &carpark.data->exit[i]); // needs access to LPR and gate
         pthread_create(&exit_gate, NULL, monitor_gate, &carpark.data->exit[i].gate);
     }
-
+    
 
     while (true) sleep(10);
 
@@ -118,7 +126,7 @@ void *monitor_gate(void *arg)
 
         if (gate->status == OPEN) // Not sure if this line is necessary?
         {    
-        // delay for 20ms
+        // delay for 20ms * TIMEX
         pause_for(20);
         // Set the gate status to Lowering
         gate->status = LOWERING;
@@ -150,7 +158,10 @@ void *monitor_level(void *arg)
         // get pointer to car
         car_t *car = htab_find(&verified_cars, plate);
 
-        // check car is supposed to be on level that there is room on that level and update values if not
+        // check car is supposed to be on level and that there is room on that level and update values if not
+        // if car is supposed to be, no need to change these values
+        // if car is not supposed to be, and there is also no room, no need to change these values
+        // if car is not supposed to be, and there is room, values must be changed
         if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
         {
             // Decrement number of free spaces on level
@@ -163,7 +174,8 @@ void *monitor_level(void *arg)
             car->current_level = level;
         }
 
-        // unlock mutex
+        // reset LPR value and unlock mutex
+        lpr->level_LPR->plate = EMPTY_LPR;
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }
 }
@@ -317,11 +329,14 @@ void *generate_bill(void *arg)
     pthread_mutex_unlock(&billing_lock);
 }
 
-void generate_GUI( carpark_t *data )
+void *generate_GUI( void *arg )
 {
-    while (true)
+    carpark_t *data = (carpark_t *)arg;
+    
+    for(;;)
     {
-        usleep(50);
+        pause_for(50);
+        fflush(stdout);
         printf("\033[2J"); // Clear screen
 
         printf(
@@ -330,49 +345,60 @@ void generate_GUI( carpark_t *data )
         "╚═══════════════════════════════════════════════╝\n"
         );
         
-        printf("\n\e[1mTotal Revenue:\e[m $0.00\n\n");
+        //Total revenue of 
+        printf("\n\e[1mTotal Revenue:\e[m $%.2f\n\n", total_revenue);
 
-
+        // Level information
         printf("\n\e[1mLevel\tCapacity\tLPR\t\tTemp (C)\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
-        for (int i = 1; i <= NUM_LEVELS; i++)
+        for (int i = 0; i < NUM_LEVELS; i++)
         {
-            printf("%d\t", i);
-            printf("%d/%d\t\t", i, CARS_PER_LEVEL);
-            printf("%s\t\t", "123ABC");
-            printf("%d\t\t", 27);
+            printf("%d\n", i + 1); // level no. corrected from indexing value
+            printf("%d/%d\t\t", CARS_PER_LEVEL - freespaces[i], CARS_PER_LEVEL); // capacity X out of Y
+            printf("%s\t\t", data->level[i].LPR.plate); // Level LPR reading
+            printf("%d\t\t", data->level[i].temperature.sensor);  // Level temperature reading
             printf("\n");
         }
 
         printf("\n");
-
+        // Entry information
         printf("\n\e[1mEntry\tGate\t\tLPR\t\tDisplay\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
-        for (int i = 1; i <= NUM_ENTRIES; i++)
-        {
-            printf("%d\t", i);
-            printf("%s\t\t", gate_status('C'));
-            printf("%s\t\t", "123ABC");
-            printf("%c\t", '3');
+        for (int i = 0; i < NUM_ENTRIES; i++)
+        {   
+            // Shared memory value doesn't contain null terminator
+            // Using sprintf to get the value and store in printf safe variable
+            char *plate;
+            sprintf(plate, data->entrance[i].LPR.plate); 
+
+            printf("%d\t", i + 1); // entry no. corrected from indexing value
+            printf("%s\t\t", gate_status(data->entrance[i].gate.status)); // state of entry gate
+            printf("%s\t\t", plate); // Entry LPR reading
+            printf("%c\t", data->entrance[i].sign.display); // Entry information sign display value
             printf("\n");
         }
 
         printf("\n");
-        
+        // Exit information
         printf("\n\e[1mExit\tGate\t\tLPR\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
-        for (int i = 1; i <= NUM_ENTRIES; i++)
+        for (int i = 0; i < NUM_ENTRIES; i++)
         {
-            printf("%d\t", i);
-            printf("%s\t", gate_status('L'));
-            printf("%s\t", "123ABC");
+            // Shared memory value doesn't contain null terminator
+            // Using sprintf to get the value and store in printf safe variable
+            char *plate;
+            sprintf(plate, data->exit[i].LPR.plate); 
+
+            printf("%d\t", i + 1); // exit no. corrected from indexing value
+            printf("%s\t", gate_status(data->exit[i].gate.status)); // state of exit gate
+            printf("%s\t", plate); // Exit LPR reading
             printf("\n");
         }
 
         printf("\n");
     }
 }
-
+// Returns the meaning of the gate status characters stored in shared memory
 char *gate_status(char code)
 {
     switch((int)code)

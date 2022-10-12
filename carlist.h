@@ -6,23 +6,27 @@
 #include <stdlib.h>   // for malloc(), free(), NULL
 #include <string.h>   // for strcmp()
 #include <pthread.h>
+#include <sys/time.h>
 #define PLATE_LENGTH 7
 #endif
-// An item inserted into a hash table.
-// As hash collisions can occur, multiple items can exist in one bucket.
-// Therefore, each bucket is a linked list of items that hashes to that bucket.
-typedef struct item item_t;
-struct item
+// An car inserted into a hash table.
+// As hash collisions can occur, multiple cars can exist in one bucket.
+// Therefore, each bucket is a linked list of cars that hashes to that bucket.
+typedef struct car car_t;
+struct car
 {
-    char value[PLATE_LENGTH];
-    item_t *next;
+    char plate[PLATE_LENGTH];
+    int current_level;
+    bool in_carpark;
+    struct timeval entry_time;
+    car_t *next;
 };
 
 // A hash table mapping a string to an integer.
 typedef struct htab htab_t;
 struct htab
 {
-    item_t **buckets;
+    car_t **buckets;
     size_t size;
 };
 
@@ -30,23 +34,25 @@ struct htab
 bool htab_insert_plates(htab_t *h);
 bool htab_init(htab_t *h, size_t n);
 size_t htab_index(htab_t *h, char *key);
-item_t *htab_bucket(htab_t *h, char *key);
+car_t *htab_bucket(htab_t *h, char *key);
 size_t djb_hash(char *c);
-bool htab_add(htab_t *h,char *value);
+bool htab_add(htab_t *h,char *plate);
 void htab_print(htab_t *h);
-bool htab_search_value(htab_t *h, char *search);
+bool htab_search_plate(htab_t *h, char *search);
+void add_car(htab_t *h, car_t *car);
+car_t *htab_find(htab_t *h, char *key);
 
 
-void item_print(item_t *i)
+void car_print(car_t *i)
 {
-    printf("value=%s",i->value);
+    printf("plate=%s",i->plate);
 }
 
 bool htab_init(htab_t *h, size_t n)
 {
     // TODO: implement this function
     h->size = n;
-    h->buckets = calloc(n, sizeof(item_t*)); // array of pointers, therefore no matter how large table grows, same amount of memory
+    h->buckets = calloc(n, sizeof(car_t*)); // array of pointers, therefore no matter how large table grows, same amount of memory
     // calloc guarantess all that memory is initialised to zero
     return h->buckets != NULL;
 }
@@ -71,22 +77,22 @@ bool htab_insert_plates(htab_t *h)
     return true;
 }
 
-bool htab_add(htab_t *h, char *value)
+bool htab_add(htab_t *h, char *plate)
 {
     // TODO: implement this function
 
-    size_t index = htab_index(h, value);
+    size_t index = htab_index(h, plate);
 
-    item_t *new_item = malloc(sizeof(item_t));
-    if (new_item == NULL){
-        printf("Failed to allocate memory to new item\n");
+    car_t *new_car = malloc(sizeof(car_t));
+    if (new_car == NULL){
+        printf("Failed to allocate memory to new car\n");
         return false;
     }
 
-    sprintf(new_item->value, value);
-    new_item->next = h->buckets[index];
+    sprintf(new_car->plate, plate);
+    new_car->next = h->buckets[index];
 
-    h->buckets[index] = new_item;
+    h->buckets[index] = new_car;
 
 }
 
@@ -102,9 +108,9 @@ void htab_print(htab_t *h)
         }
         else
         {
-            for (item_t *j = h->buckets[i]; j != NULL; j = j->next)
+            for (car_t *j = h->buckets[i]; j != NULL; j = j->next)
             {
-                item_print(j);
+                car_print(j);
                 if (j->next != NULL)
                 {
                     printf(" -> ");
@@ -134,20 +140,51 @@ size_t htab_index(htab_t *h, char *key)
 }
 
 // Find pointer to head of list for key in hash table.
-item_t *htab_bucket(htab_t *h, char *key)
+car_t *htab_bucket(htab_t *h, char *key)
 {
-    // TODO: implement this function (uses htab_index())
-    size_t index = htab_index(h, key);
-    return h->buckets[index];
+    return h->buckets[htab_index(h, key)];
 }
 
-bool htab_search_value(htab_t *h, char *search)
+// Find an item for key in hash table.
+// pre: true
+// post: (return == NULL AND item not found)
+//       OR (strcmp(return->key, key) == 0)
+car_t *htab_find(htab_t *h, char *key)
+{
+    for (car_t *i = htab_bucket(h, key); i != NULL; i = i->next)
+    {
+        if (strcmp(i->plate, key) == 0)
+        { // found the key
+            return i;
+        }
+    }
+    return NULL;
+}
+
+bool htab_search_plate(htab_t *h, char *search)
 {
     for (size_t i = 0; i < h->size; ++i)
     {
-        for (item_t *bucket = h->buckets[i]; bucket != NULL; bucket = bucket->next) {
-            if (bucket->value == search) return true;
+        for (car_t *bucket = h->buckets[i]; bucket != NULL; bucket = bucket->next) {
+            if (bucket->plate == search) return true;
         }
     }
     return false;
+}
+
+
+void remove_car(htab_t *h, char *plate)
+{
+    car_t *car = htab_find(h, plate);
+    car->current_level = 0;
+    car->in_carpark = false;
+}
+
+
+void add_car(htab_t *h, car_t *new_car)
+{
+    car_t *car = htab_find(h, new_car->plate);
+    car->current_level = car->current_level;
+    car->entry_time = car->entry_time;
+    car->in_carpark = true;
 }

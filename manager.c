@@ -4,43 +4,42 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
  
 #include "carpark.h"
-#include "plates.h"
+#include "carlist.h"
+
 
 size_t buckets = 40;
 htab_t verified_cars;
 
+pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t hash_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t billing_lock = PTHREAD_MUTEX_INITIALIZER;
+volatile int freespaces[NUM_LEVELS];
+volatile float total_revenue = 0.00;
 
-typedef struct car car_t;
-struct car
+typedef struct level_LPR_monitor level_LPR_monitor_t;
+struct level_LPR_monitor
 {
-    char *plate;
-    int current_level;
-    struct timeval entry_time;
+    int id;
+    LPR_t *level_LPR;
 };
-
-typedef struct car_list car_list_t;
-struct car_list
-{
-    int free_spaces;
-    car_t cars[CARS_PER_LEVEL];
-};
-
-car_list_t list_cars[NUM_LEVELS];
-pthread_mutex_t list_lock;
-pthread_cond_t full, empty;
 
 //Function declarations
 void generate_GUI(carpark_t *data); 
 char *gate_status(char code); void open_gate(); void close_gate(); 
-void generate_bill(char *plate, int useconds);
+void *generate_bill(void *arg);
 void generate_car(char *plate, int level);
 char find_space();
 long long duration_ms(struct timeval start);
+void pause(int time);
+void *delete_car(void *arg);
 
-// License plate Readers Monitor
+// Monitors
 void *monitor_entry(void *arg); void *monitor_exit(void *arg); void *monitor_level(void *arg);
+void *monitor_gate(void *arg);
 
 
 
@@ -63,27 +62,35 @@ int main(int argc, char **argv){
 
     // Initialise the list of cars with all spaces remaining
     for( int i = 0; i < NUM_LEVELS; i++){
-        list_cars[i].free_spaces = CARS_PER_LEVEL;
+        freespaces[i] = CARS_PER_LEVEL;
     }
 
-    // Begin monitoring Entrance License Plate Readers to detect Cars
+    // Begin monitoring Entrance License Plate Readers to detect Cars and Boom Gates put into OPEN status
     for( int i = 0; i < NUM_ENTRIES; i++){
-        pthread_t entry_LPR;
-        pthread_create(&entry_LPR, NULL, monitor_entry, &carpark.data->entrance[i]);
+        pthread_t entry_LPR, entry_gate;
+        pthread_create(&entry_LPR, NULL, monitor_entry, &carpark.data->entrance[i]); //needs access to LPR and gate
+        pthread_create(&entry_gate, NULL, monitor_gate, &carpark.data->exit[i].gate);
     }
 
     // Begin monitoring Level License Plate Readers to detect Cars
     for( int i = 0; i < NUM_LEVELS; i++){
+        // initialise struct for passing to thread so it knows which level to change the car to
+        level_LPR_monitor_t monitor;
+        monitor.level_LPR = &carpark.data->level[i].LPR;
+        monitor.id = i;
+
         pthread_t level_LPR;
-        pthread_create(&level_LPR, NULL, monitor_level, &carpark.data->level[i].LPR);
+        pthread_create(&level_LPR, NULL, monitor_level, &monitor);
     }
     
     // Begin monitoring Exit License Plate Readers to detect Cars
     for ( int i = 0; i < NUM_EXITS; i++)
     {
-        pthread_t exit_LPR;
-        pthread_create(&exit_LPR, NULL, monitor_exit, &carpark.data->exit[i].LPR);
+        pthread_t exit_LPR, exit_gate;
+        pthread_create(&exit_LPR, NULL, monitor_exit, &carpark.data->exit[i]); // needs access to LPR and gate
+        pthread_create(&exit_gate, NULL, monitor_gate, &carpark.data->exit[i].gate);
     }
+
 
     while (true) sleep(10);
 
@@ -91,40 +98,109 @@ int main(int argc, char **argv){
 
 }
 
+#define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
+
+void pause(int time)
+{
+    usleep(TIMEX * time);
+}
+
+void *monitor_gate(void *arg)
+{
+    gate_t *gate = (gate_t *)arg;
+
+    for(;;)
+    {
+        //lock gate mutex and wait for signal
+        pthread_mutex_lock(&gate->mutex);
+        while(gate->status != OPEN)
+            pthread_cond_wait(&gate->condition, &gate->mutex);
+
+        if (gate->status == OPEN) // Not sure if this line is necessary?
+        {    
+        // delay for 20ms
+        pause(20);
+        // Set the gate status to Lowering
+        gate->status = LOWERING;
+        }
+        // signal condition variable and unlock mutex
+        pthread_cond_signal(&gate->condition);
+        pthread_mutex_unlock(&gate->mutex);
+    }
+
+}
+
 void *monitor_level(void *arg)
 {
-    LPR_t *lpr = (LPR_t *)arg;
+    level_LPR_monitor_t *lpr = (level_LPR_monitor_t *)arg;
 
     for(;;)
     {
         // lock lpr mutex and wait for signal
-        pthread_mutex_lock(&lpr->mutex);
-        while (lpr->plate == EMPTY_LPR)
-            pthread_cond_wait(&lpr->condition, &lpr->mutex);
+        pthread_mutex_lock(&lpr->level_LPR->mutex);
+        while (lpr->level_LPR->plate == EMPTY_LPR)
+            pthread_cond_wait(&lpr->level_LPR->condition, &lpr->level_LPR->mutex);
 
-        // Read plate
+        
+        int index = lpr->id;
+        // Corrected from indexing value to actual level
+        int level = index + 1; 
+        char *plate = lpr->level_LPR->plate;
+
+        // get pointer to car
+        car_t *car = htab_find(&verified_cars, plate);
+
+        // check car is supposed to be on level that there is room on that level and update values if not
+        if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
+        {
+            // Decrement number of free spaces on level
+            freespaces[index]--;
+            // Correct for indexing
+            int current_level = car->current_level - 1; 
+            // Increment number of free spaces on level
+            freespaces[current_level]++;
+            // Edit current level to new value
+            car->current_level = level;
+        }
 
         // unlock mutex
-        pthread_mutex_unlock(&lpr->mutex);
+        pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }
 }
 
 void *monitor_exit(void *arg)
 {
-    LPR_t *lpr = (LPR_t *)arg;
+    exit_t *exit = (exit_t *)arg;
 
     for(;;)
     {
         // lock lpr mutex and wait for signal
-        pthread_mutex_lock(&lpr->mutex);
-        while (lpr->plate == EMPTY_LPR)
-            pthread_cond_wait(&lpr->condition, &lpr->mutex);
+        pthread_mutex_lock(&exit->LPR.mutex);
+        while (exit->LPR.plate == EMPTY_LPR)
+            pthread_cond_wait(&exit->LPR.condition, &exit->LPR.mutex);
 
         // Read plate
+        char *plate = exit->LPR.plate;
 
+        // Bill car
+        pthread_t bill;
+        pthread_create(&bill, NULL, generate_bill, plate);
+        pthread_join(&bill, NULL);
+        // Remove car from carpark
+        pthread_t car;
+        pthread_create(&car, NULL, delete_car, plate);
 
-        // unlock lpr mutex 
-        pthread_mutex_unlock(&lpr->mutex);
+        // Lock gate mutex
+        pthread_mutex_lock(&exit->gate.mutex);
+        // Set gate status to RAISING
+        exit->gate.status = RAISING;
+        // Signal condition signal and unlock mutex
+        pthread_cond_signal(&exit->gate.condition);
+        pthread_mutex_unlock(&exit->gate.mutex);
+
+        // unlock lpr mutex and reset LPR
+        exit->LPR.plate = EMPTY_LPR;
+        pthread_mutex_unlock(&exit->LPR.mutex);
     }
 }
 
@@ -143,7 +219,11 @@ void *monitor_entry(void *arg)
         char *plate = entry->LPR.plate;
         char space;
 
-        if ( htab_search_value(&verified_cars, plate) )
+        // Acquire hash and space locks out here so that car can be generated without losing its spot
+        pthread_mutex_lock(&hash_lock);
+        pthread_mutex_lock(&space_lock);
+
+        if ( htab_search_plate(&verified_cars, plate) )
             space = find_space();
         else
             space = DENIED;
@@ -154,15 +234,23 @@ void *monitor_entry(void *arg)
         if (0 < level && level < 6)
         {
             generate_car(plate, level);
+
             pthread_mutex_lock(&entry->gate.mutex);
+
             entry->gate.status = RAISING;
+
             pthread_cond_signal(&entry->gate.condition);
             pthread_mutex_unlock(&entry->gate.mutex);
         }
 
+        pthread_mutex_unlock(&hash_lock);
+        pthread_mutex_unlock(&space_lock);
+
         // Display entry status on sign
         pthread_mutex_lock(&entry->sign.mutex);
+
         entry->sign.display = level;
+
         pthread_cond_signal(&entry->sign.condition);
         pthread_mutex_unlock(&entry->sign.mutex);
 
@@ -180,7 +268,7 @@ char find_space()
     int level = 0;
 
     for( int i = 1; i < NUM_LEVELS; i++){
-        level = list_cars[i].free_spaces > list_cars[i - 1].free_spaces ? i + 1 : i;
+        level = freespaces[i] > freespaces[i-1] ? i + 1 : i;
     }
 
     if (level != 0)
@@ -191,24 +279,42 @@ char find_space()
 
 void generate_car(char *plate, int level)
 {
-    car_t car;
-    car.current_level = level;
-    car.plate = plate;
-    gettimeofday(&car.entry_time, NULL);
+    car_t new_car;
+    sprintf(new_car.plate, plate);
+    new_car.current_level = level;
 
-    // add to hashtable
+    struct timeval entry_time;
+    gettimeofday(&new_car.entry_time, NULL);
 
+    add_car(&verified_cars, &new_car);
 }
 
-void generate_bill(char *plate, int useconds)
+void *delete_car(void *arg)
 {
-    float cost = useconds * 0.05;
+    char *plate = (char *)arg;
+    remove_car(&verified_cars, plate);
+}
 
+void *generate_bill(void *arg)
+{
+    char *plate = (char *)arg;
+    // Calculate cost
+    // No need to use hash lock here as just reading the value which won't be changed by anything else at this point
+    car_t *car = htab_find(&verified_cars, plate);
+    float duration = (float)duration_ms(car->entry_time);
+    float cost = duration * 0.05;
+
+    // Increment total revenue
+    pthread_mutex_lock(&revenue_lock);
+    total_revenue += cost;
+    pthread_mutex_unlock(&revenue_lock);
+
+    // Update billing records
+    pthread_mutex_lock(&billing_lock);
     FILE* bill = fopen("billing.txt", "a+");
-
     fprintf(bill, "%s $.2f", plate, cost);
-
     fclose(bill);
+    pthread_mutex_unlock(&billing_lock);
 }
 
 void generate_GUI( carpark_t *data )
@@ -290,9 +396,10 @@ char *gate_status(char code)
 
 }
 
-long long timeInMilliseconds(struct timeval start) {
-    struct timeval tv;
+long long duration_ms(struct timeval start) {
 
-    gettimeofday(&tv,NULL);
-    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+    struct timeval end;
+    gettimeofday(&end,NULL);
+
+    return (((long long)end.tv_sec)*1000)+(end.tv_usec/1000) - (((long long)start.tv_sec)*1000)+(start.tv_usec/1000);
 }

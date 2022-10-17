@@ -8,8 +8,10 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "carpark.h"
+#include "carlist.h"
 
 //Car Simulation
 
@@ -45,7 +47,9 @@ void boomGateWait();
 void updateTemp();
 
 //Create a license plate that is either unique or matches with a license plate in the plates.txt file.
-char createCar();
+char create_car();
+
+void pause_for(int time);
 
 
 
@@ -58,21 +62,53 @@ int main(int argc, char **argv){
         fprintf(stderr, "Error initialising shared memory: %s\n", strerror(errno));
     }
 
-    // char **plates;
-    // int platecount = 0;
-    // char plate[7];
-    // while(fscanf("plates.txt", "%s", plate) != EOF)
-    // {
-    //     plates[platecount] = malloc();
-    //     platecount++;
-    // }
+
+
+
+    htab_t *verified_cars;
+    int buckets = 40;
+        
+    if (!htab_init(&verified_cars, buckets))
+    {
+        printf("failed to initialise hash table\n");
+        return EXIT_FAILURE;
+    }
+
+    htab_insert_plates(&verified_cars);
+
+
+
+    for(;;)
+    {   
+        pause_for( 100 ); // random number between 1 to 100;
+        car_t *car; 
+        char *plate;
+
+        do {
+            plate = generate_plate();
+            car = htab_find(&verified_cars, plate);
+            if ( car == NULL ) break;
+        } while ( car->in_carpark ); 
+
+
+        pthread_t car;
+        pthread_create(&car, NULL, create_car, plate);
+
+    }
+
+        
 
     return 0;
 }
 
 
 
+#define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
 
+void pause_for(int time)
+{
+    usleep(TIMEX * time);
+}
 
 
 

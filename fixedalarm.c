@@ -13,11 +13,15 @@ struct alarm {
     temperature_t *temperature;
     pthread_mutex_t *mutex;
     pthread_cond_t *condition;
+    gate_t *gate;
+    sign_t *sign;
     int *status;
 };
 
-void *tempmonitor(void *arg);
 
+void *tempmonitor(void *arg);
+void *open_gate(void *arg);
+void *display_evac(void *);
 
 int main(int argc, char **argv){
 
@@ -34,7 +38,7 @@ int main(int argc, char **argv){
     for( int i = 0; i < NUM_LEVELS; i++){
         pthread_t sensor_thread;
         alarm_t sensor_alarm;
-        sensor_alarm.temperature = &carpark.data->level[i].temperature.sensor;
+        sensor_alarm.temperature = &carpark.data->level[i].temperature;
         sensor_alarm.mutex = &alarm_mutex;
         sensor_alarm.condition = &alarm_condvar;
         sensor_alarm.status = &alarm;
@@ -52,24 +56,60 @@ int main(int argc, char **argv){
     for( int i = 0; i < NUM_LEVELS; i++){
         carpark.data->level[i].temperature.alarm = 1;
     }
-
     pthread_mutex_unlock(&alarm_mutex);
 
-    // Raise all boom gates
+    // Raise all entrance gates and display evacuate on signs
+    pthread_t entry_gates[NUM_ENTRIES];
+    pthread_t signs[NUM_ENTRIES];
 
+    for( int i = 0; i < NUM_ENTRIES; i++){
+        alarm_t gate_alarm;
+        gate_alarm.gate = &carpark.data->entrance[i].gate;
+        gate_alarm.status = &alarm;
+        pthread_create(&entry_gates[i], NULL, open_gate, &gate_alarm);
 
-    //
+        alarm_t sign_alarm;
+        sign_alarm.sign = &carpark.data->entrance[i].sign;
+        sign_alarm.status = &alarm;
+        pthread_create(&signs[i], NULL, display_evac, &sign_alarm);
+    }
+
+    // Raise all exit gates
+    pthread_t exit_gates[NUM_EXITS];
+    for( int i = 0; i < NUM_EXITS; i++){
+        pthread_create(&exit_gates[i], NULL, open_gate, &carpark.data->exit[i].gate);
+    }
+
+    // Wait for manager to turn off alarms once all cars have exited;
+    while(carpark.data->level->temperature.alarm)
+    {
+        sleep(1);
+    }
+
+    // Allow threads to terminate
+    for( int i = 0; i < NUM_ENTRIES; i++){
+        pthread_join(entry_gates[i], NULL);
+        pthread_join(signs[i], NULL);
+    }
+
+    for( int i = 0; i < NUM_EXITS; i++){
+        pthread_join(exit_gates[i], NULL);
+    }
+
+    // Unmap memory before the program closes
+    munmap(&carpark.data, sizeof(carpark_t));
+    carpark.data = NULL;
+    carpark.fd = -1;
 
     return 0;
 }
-
 
 
 void *tempmonitor(void *arg)
 {
 
     alarm_t *alarm = (alarm_t *)arg;
-    temperature_t *temperature = &alarm->temperature;
+    temperature_t *temperature = alarm->temperature;
 
 
     int16_t raw_temp[TEMPCHANGE_WINDOW];
@@ -144,10 +184,10 @@ void *tempmonitor(void *arg)
             if (smooth_temp[TEMPCHANGE_WINDOW - 1] - smooth_temp[0] >= RATE_OF_RISE)
             {
                 // Activate alarm
-                pthread_mutex_lock(&alarm->mutex);
-                alarm->status = 1;
-                pthread_cond_signal(&alarm->condition);
-                pthread_mutex_unlock(&alarm->mutex);
+                pthread_mutex_lock(alarm->mutex);
+                alarm->status = (int *)1;
+                pthread_cond_signal(alarm->condition);
+                pthread_mutex_unlock(alarm->mutex);
             }
 
             // FIXED TEMPERATURE FIRE DETECTION
@@ -160,14 +200,47 @@ void *tempmonitor(void *arg)
             }
             if ( high_count >= TEMPCHANGE_WINDOW * 0.9 )
             {
-                pthread_mutex_lock(&alarm->mutex);
-                alarm->status = 1;
-                pthread_cond_signal(&alarm->condition);
-                pthread_mutex_unlock(&alarm->mutex);
+                pthread_mutex_lock(alarm->mutex);
+                alarm->status = (int *)1;
+                pthread_cond_signal(alarm->condition);
+                pthread_mutex_unlock(alarm->mutex);
             }
         }
 		
 		usleep(2000);
 		
 	}
+}
+
+void *open_gate(void *arg)
+{
+    alarm_t *alarm = (alarm_t *)arg;
+	gate_t *bg = alarm->gate;
+
+	pthread_mutex_lock(&bg->mutex);
+	while (alarm->status) {
+		if (bg->status == CLOSED) {
+			bg->status = RAISING;
+			pthread_cond_broadcast(&bg->condition);
+		}
+		pthread_cond_wait(&bg->condition, &bg->mutex);
+	}
+	pthread_mutex_unlock(&bg->mutex);
+}
+
+void *display_evac(void *arg)
+{
+    alarm_t *alarm = (alarm_t *)arg;
+    sign_t *sign = alarm->sign;
+    char *evacmessage = "EVACUATE ";
+
+    while (alarm->status) {
+		for (char *p = evacmessage; *p != '\0'; p++) {
+            pthread_mutex_lock(&sign->mutex);
+            sign->display = *p;
+            pthread_cond_broadcast(&sign->condition);
+            pthread_mutex_unlock(&sign->mutex);
+			usleep(20000);
+		}
+    }
 }

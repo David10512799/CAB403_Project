@@ -9,9 +9,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "carpark.h"
 #include "carlist.h"
+
+extern int errno;
 
 //Car Simulation
 
@@ -49,7 +52,10 @@ void updateTemp();
 //Create a license plate that is either unique or matches with a license plate in the plates.txt file.
 char create_car();
 
-void pause_for(int time);
+bool init_carpark(shared_carpark_t* carpark);
+
+void init_carpark_values(carpark_t* park);
+
 
 
 
@@ -65,7 +71,7 @@ int main(int argc, char **argv){
 
 
 
-    htab_t *verified_cars;
+    htab_t verified_cars;
     int buckets = 40;
         
     if (!htab_init(&verified_cars, buckets))
@@ -78,38 +84,121 @@ int main(int argc, char **argv){
 
 
 
-    for(;;)
-    {   
-        pause_for( 100 ); // random number between 1 to 100;
-        car_t *car; 
-        char *plate;
+    // for(;;)
+    // {   
+    //     ms_pause( 100 ); // random number between 1 to 100;
+    //     car_t *car; 
+    //     char *plate;
 
-        do {
-            plate = generate_plate();
-            car = htab_find(&verified_cars, plate);
-            if ( car == NULL ) break;
-        } while ( car->in_carpark ); 
+    //     do {
+    //         plate = generate_plate();
+    //         car = htab_find(&verified_cars, plate);
+    //         if ( car == NULL ) break;
+    //     } while ( car->in_carpark ); 
 
 
-        pthread_t car;
-        pthread_create(&car, NULL, create_car, plate);
+    //     pthread_t car;
+    //     pthread_create(&car, NULL, create_car, plate);
 
-    }
-
-        
+    // }
 
     return 0;
 }
 
 
 
-#define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
 
-void pause_for(int time)
+
+bool init_carpark(shared_carpark_t* carpark) 
 {
-    usleep(TIMEX * time);
+
+    shm_unlink(SHARE_NAME);
+
+    carpark->name = SHARE_NAME;
+
+    if ((carpark->fd = shm_open(SHARE_NAME, O_CREAT | O_RDWR , 0666)) < 0 ){
+        perror("shm_open");
+        printf("Failed to create shared memory object for Carpark\n");
+        exit(1);
+    }
+
+    if (ftruncate(carpark->fd, sizeof(carpark_t))){
+        perror("ftruncate");
+        printf("Failed to initialise size of shared memory object for Carpark\n");
+        exit(1);
+    }
+
+    if  ((carpark->data = mmap(0, sizeof(carpark_t), PROT_READ | PROT_WRITE, MAP_SHARED, carpark->fd, 0)) == (void *)-1 ){
+        perror("mmap");
+        printf("Failed to map the shared memory for Carpark");
+        exit(1);
+    }
+
+    init_carpark_values(carpark->data);
+
+    return true;
 }
 
 
 
+void init_carpark_values(carpark_t* park)
+{
 
+    pthread_mutexattr_t mutex_attr;
+    if (pthread_mutexattr_init(&mutex_attr) != 0)
+    {
+        perror("pthread_mutexattr_init");
+        exit(1);
+    }
+    if ( pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED) != 0)
+    {
+        perror("pthread_mutexattr_setpshared");
+        exit(1);
+    }
+
+    pthread_condattr_t cond_attr;
+    if (pthread_condattr_init(&cond_attr) != 0)
+    {
+        perror("pthread_mutexattr_init");
+        exit(1);
+    }
+    if ( pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED) != 0)
+    {
+        perror("pthread_mutexattr_setpshared");
+        exit(1);
+    }    
+
+    for (int i = 0; i < 5; i++)
+    {
+        // ENTRANCES
+        park->entrance[i].gate.status = 'C';
+        pthread_mutex_init(&park->entrance[i].gate.mutex, &mutex_attr);
+        pthread_cond_init(&park->entrance[i].gate.condition, &cond_attr);
+
+        
+        park->entrance[i].LPR.plate = EMPTY_LPR;
+        pthread_mutex_init(&park->entrance[i].LPR.mutex, &mutex_attr);
+        pthread_cond_init(&park->entrance[i].LPR.condition, &cond_attr);
+
+        pthread_mutex_init(&park->entrance[i].sign.mutex, &mutex_attr);
+        pthread_cond_init(&park->entrance[i].sign.condition, &cond_attr);        
+
+        // EXITS
+        park->exit[i].gate.status = 'C';
+        pthread_mutex_init(&park->exit[i].gate.mutex, &mutex_attr);
+        pthread_cond_init(&park->exit[i].gate.condition, &cond_attr);
+
+        park->exit[i].LPR.plate = EMPTY_LPR;
+        pthread_mutex_init(&park->exit[i].LPR.mutex, &mutex_attr);
+        pthread_cond_init(&park->exit[i].LPR.condition, &cond_attr);
+
+        // LEVELS
+        park->level[i].LPR.plate = EMPTY_LPR;
+        pthread_mutex_init(&park->level[i].LPR.mutex, &mutex_attr);
+        pthread_cond_init(&park->level[i].LPR.condition, &cond_attr);
+
+        park->level[i].temperature.alarm = 0;
+        park->level[i].temperature.sensor = 0;
+        
+    }
+}

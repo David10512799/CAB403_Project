@@ -5,6 +5,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
  
 #include "carpark.h"
 #include "carlist.h"
@@ -36,15 +39,12 @@ void *generate_bill(void *arg);
 void generate_car(char *plate, int level);
 char find_space();
 long long duration_ms(struct timeval start);
-void pause_for(int time);
 void *delete_car(void *arg);
+bool string_equal(char *a, char *b);
 
 // Monitors
 void *monitor_entry(void *arg); void *monitor_exit(void *arg); void *monitor_level(void *arg);
 void *monitor_gate(void *arg);
-
-
-
 
 int main(int argc, char **argv) {
 
@@ -62,7 +62,9 @@ int main(int argc, char **argv) {
 
     // Get shared memory object
     shared_carpark_t carpark;
-    get_carpark(&carpark);
+    carpark.name = SHARE_NAME;
+    carpark.fd = shm_open(SHARE_NAME, O_RDWR, 0666);
+    carpark.data = mmap(0, sizeof(carpark_t),PROT_READ | PROT_WRITE, MAP_SHARED, carpark.fd, 0);
 
     // Generate GUI
     pthread_t gui;
@@ -106,12 +108,6 @@ int main(int argc, char **argv) {
 
 }
 
-#define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
-
-void pause_for(int time)
-{
-    usleep(TIMEX * time);
-}
 
 void *monitor_gate(void *arg)
 {
@@ -127,7 +123,7 @@ void *monitor_gate(void *arg)
         if (gate->status == OPEN) // Not sure if this line is necessary?
         {    
         // delay for 20ms * TIMEX
-        pause_for(20);
+        ms_pause(20);
         // Set the gate status to Lowering
         gate->status = LOWERING;
         }
@@ -146,10 +142,9 @@ void *monitor_level(void *arg)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&lpr->level_LPR->mutex);
-        while (lpr->level_LPR->plate == EMPTY_LPR)
+        while (string_equal(lpr->level_LPR->plate, EMPTY_LPR))
             pthread_cond_wait(&lpr->level_LPR->condition, &lpr->level_LPR->mutex);
 
-        
         int index = lpr->id;
         // Corrected from indexing value to actual level
         int level = index + 1; 
@@ -188,7 +183,7 @@ void *monitor_exit(void *arg)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&exit->LPR.mutex);
-        while (exit->LPR.plate == EMPTY_LPR)
+        while (string_equal(exit->LPR.plate, EMPTY_LPR))
             pthread_cond_wait(&exit->LPR.condition, &exit->LPR.mutex);
 
         // Read plate
@@ -224,7 +219,7 @@ void *monitor_entry(void *arg)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&entry->LPR.mutex);
-        while (entry->LPR.plate == EMPTY_LPR)
+        while (string_equal(entry->LPR.plate, EMPTY_LPR))
             pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
         
         // Read plate and determine if allowed in.
@@ -296,7 +291,9 @@ void generate_car(char *plate, int level)
     new_car.current_level = level;
 
     struct timeval entry_time;
-    gettimeofday(&new_car.entry_time, NULL);
+    gettimeofday(&entry_time, NULL);
+
+    new_car.entry_time = entry_time;
 
     add_car(&verified_cars, &new_car);
 }
@@ -305,6 +302,7 @@ void *delete_car(void *arg)
 {
     char *plate = (char *)arg;
     remove_car(&verified_cars, plate);
+    return NULL;
 }
 
 void *generate_bill(void *arg)
@@ -324,9 +322,11 @@ void *generate_bill(void *arg)
     // Update billing records
     pthread_mutex_lock(&billing_lock);
     FILE* bill = fopen("billing.txt", "a+");
-    fprintf(bill, "%s $.2f", plate, cost);
+    fprintf(bill, "%s $%.2f", plate, cost);
     fclose(bill);
     pthread_mutex_unlock(&billing_lock);
+
+    return NULL;
 }
 
 void *generate_GUI( void *arg )
@@ -335,7 +335,7 @@ void *generate_GUI( void *arg )
     
     for(;;)
     {
-        pause_for(50);
+        ms_pause(50);
         fflush(stdout);
         printf("\033[2J"); // Clear screen
 
@@ -368,7 +368,7 @@ void *generate_GUI( void *arg )
         {   
             // Shared memory value doesn't contain null terminator
             // Using sprintf to get the value and store in printf safe variable
-            char *plate;
+            char plate[PLATE_LENGTH];
             sprintf(plate, data->entrance[i].LPR.plate); 
 
             printf("%d\t", i + 1); // entry no. corrected from indexing value
@@ -386,7 +386,7 @@ void *generate_GUI( void *arg )
         {
             // Shared memory value doesn't contain null terminator
             // Using sprintf to get the value and store in printf safe variable
-            char *plate;
+            char plate[PLATE_LENGTH];
             sprintf(plate, data->exit[i].LPR.plate); 
 
             printf("%d\t", i + 1); // exit no. corrected from indexing value
@@ -397,6 +397,7 @@ void *generate_GUI( void *arg )
 
         printf("\n");
     }
+    return NULL;
 }
 // Returns the meaning of the gate status characters stored in shared memory
 char *gate_status(char code)
@@ -428,4 +429,9 @@ long long duration_ms(struct timeval start) {
     gettimeofday(&end,NULL);
 
     return (((long long)end.tv_sec)*1000)+(end.tv_usec/1000) - (((long long)start.tv_sec)*1000)+(start.tv_usec/1000);
+}
+
+bool string_equal(char *a, char *b)
+{
+    return strcmp(a, b) == 0;
 }

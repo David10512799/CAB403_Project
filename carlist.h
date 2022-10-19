@@ -95,14 +95,15 @@ bool htab_add(htab_t *h, char *plate)
 
     h->buckets[index] = new_car;
 
+    return true;
 }
 
 void htab_print(htab_t *h)
 {
-    printf("hash table with %d buckets\n", h->size);
+    printf("hash table with %ld buckets\n", h->size);
     for (size_t i = 0; i < h->size; ++i)
     {
-        printf("bucket %d: ", i + 1);
+        printf("bucket %ld: ", i + 1);
         if (h->buckets[i] == NULL)
         {
             printf("empty\n");

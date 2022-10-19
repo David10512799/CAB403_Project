@@ -90,18 +90,20 @@ bool htab_add(htab_t *h, char *plate)
     }
 
     sprintf(new_car->plate, plate);
+    new_car->in_carpark = false;
     new_car->next = h->buckets[index];
 
     h->buckets[index] = new_car;
 
+    return true;
 }
 
 void htab_print(htab_t *h)
 {
-    printf("hash table with %d buckets\n", h->size);
+    printf("hash table with %ld buckets\n", h->size);
     for (size_t i = 0; i < h->size; ++i)
     {
-        printf("bucket %d: ", i + 1);
+        printf("bucket %ld: ", i + 1);
         if (h->buckets[i] == NULL)
         {
             printf("empty\n");
@@ -166,7 +168,7 @@ bool htab_search_plate(htab_t *h, char *search)
     for (size_t i = 0; i < h->size; ++i)
     {
         for (car_t *bucket = h->buckets[i]; bucket != NULL; bucket = bucket->next) {
-            if (bucket->plate == search) return true;
+            if (bucket->plate == search && bucket->in_carpark != true) return true;
         }
     }
     return false;

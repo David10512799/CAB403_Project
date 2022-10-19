@@ -1,14 +1,9 @@
 #ifndef CARPARK_H
 #define CARPARK_H
-#include <sys/mman.h> 
-#include <sys/stat.h> 
-#include <fcntl.h> 
 #include <pthread.h> 
 #include <stdbool.h> 
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 #endif
 
 #define SHARE_NAME "PARKING"
@@ -24,7 +19,7 @@
 #define DENIED 'X'
 #define FULL 'F'
 
-extern int errno;
+
 
 typedef struct gate gate_t;
 struct gate
@@ -53,7 +48,7 @@ struct sign
 typedef struct temperature temperature_t;
 struct temperature
 {
-    short sensor;
+    int16_t sensor;
     int alarm;
 };
 
@@ -79,25 +74,6 @@ struct level
     temperature_t temperature;
 };
 
-// typedef struct carpark carpark_t;
-// struct carpark
-// {
-//     entrance_t entrance1;
-//     entrance_t entrance2;
-//     entrance_t entrance3;
-//     entrance_t entrance4;
-//     entrance_t entrance5;
-//     exit_t exit1;
-//     exit_t exit2;
-//     exit_t exit3;
-//     exit_t exit4;
-//     exit_t exit5;
-//     level_t level1;
-//     level_t level2;
-//     level_t level3;
-//     level_t level4;
-//     level_t level5;
-// };
 
 typedef struct carpark carpark_t;
 struct carpark
@@ -115,105 +91,19 @@ struct shared_carpark
     carpark_t* data;
 };
 
-void init_carpark_values(carpark_t* park)
+
+bool monitor_alarms(level_t *level)
 {
-
-    pthread_mutexattr_t mutex_attr;
-    if (pthread_mutexattr_init(&mutex_attr) != 0)
+    while(level->temperature.alarm == 0)
     {
-        perror("pthread_mutexattr_init");
-        exit(1);
+        usleep(500);
     }
-    if ( pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED) != 0)
-    {
-        perror("pthread_mutexattr_setpshared");
-        exit(1);
-    }
-
-    pthread_condattr_t cond_attr;
-    if (pthread_condattr_init(&cond_attr) != 0)
-    {
-        perror("pthread_mutexattr_init");
-        exit(1);
-    }
-    if ( pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED) != 0)
-    {
-        perror("pthread_mutexattr_setpshared");
-        exit(1);
-    }    
-
-    for (int i = 0; i < 5; i++)
-    {
-        // ENTRANCES
-        park->entrance[i].gate.status = 'C';
-        pthread_mutex_init(&park->entrance[i].gate.mutex, &mutex_attr);
-        pthread_cond_init(&park->entrance[i].gate.condition, &cond_attr);
-
-        
-        park->entrance[i].LPR.plate = EMPTY_LPR;
-        pthread_mutex_init(&park->entrance[i].LPR.mutex, &mutex_attr);
-        pthread_cond_init(&park->entrance[i].LPR.condition, &cond_attr);
-
-        pthread_mutex_init(&park->entrance[i].sign.mutex, &mutex_attr);
-        pthread_cond_init(&park->entrance[i].sign.condition, &cond_attr);        
-
-        // EXITS
-        park->exit[i].gate.status = 'C';
-        pthread_mutex_init(&park->exit[i].gate.mutex, &mutex_attr);
-        pthread_cond_init(&park->exit[i].gate.condition, &cond_attr);
-
-        park->exit[i].LPR.plate = EMPTY_LPR;
-        pthread_mutex_init(&park->exit[i].LPR.mutex, &mutex_attr);
-        pthread_cond_init(&park->exit[i].LPR.condition, &cond_attr);
-
-        // LEVELS
-        park->level[i].LPR.plate = EMPTY_LPR;
-        pthread_mutex_init(&park->level[i].LPR.mutex, &mutex_attr);
-        pthread_cond_init(&park->level[i].LPR.condition, &cond_attr);
-
-        park->level[i].temperature.alarm = 0;
-        park->level[i].temperature.sensor = 0;
-        
-    }
+    return true; 
 }
 
-bool init_carpark(shared_carpark_t* carpark) 
+#define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
+
+void ms_pause(int time)
 {
-
-    shm_unlink(SHARE_NAME);
-
-    carpark->name = SHARE_NAME;
-
-    if ((carpark->fd = shm_open(SHARE_NAME, O_CREAT | O_RDWR , 0666)) < 0 ){
-        perror("shm_open");
-        printf("Failed to create shared memory object for Carpark\n");
-        exit(1);
-    }
-
-    if (ftruncate(carpark->fd, sizeof(carpark_t))){
-        perror("ftruncate");
-        printf("Failed to initialise size of shared memory object for Carpark\n");
-        exit(1);
-    }
-
-    if  ((carpark->data = mmap(0, sizeof(carpark_t), PROT_READ | PROT_WRITE, MAP_SHARED, carpark->fd, 0)) == (void *)-1 ){
-        perror("mmap");
-        printf("Failed to map the shared memory for Carpark");
-        exit(1);
-    }
-
-    init_carpark_values(carpark->data);
-
-    return errno == 0 ;
-}
-
-
-void get_carpark(shared_carpark_t* carpark)
-{
-    if ((carpark->fd = shm_open(SHARE_NAME, O_RDWR, 0666)) < 0)
-    {
-        perror("shm_open");
-        printf("Carpark data does not exist\n");
-        exit(1);
-    }
+    usleep(TIMEX * time * 1000);
 }

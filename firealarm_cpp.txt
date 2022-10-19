@@ -1,0 +1,201 @@
+[1m../firealarm.c:63:10: [31mstyle:[39m Octal constants shall not be used. [misra-c2012-7.1][0m
+  addr = 0150 * level + 2496;
+         ^
+[1m../firealarm.c:170:14: [31mstyle:[39m Octal constants shall not be used. [misra-c2012-7.1][0m
+  int addr = 0150 * i + 2498;
+             ^
+[1m../firealarm.c:190:23: [31mstyle:[39m A string literal shall not be assigned to an object unless the object’s type is “pointer to const-qualified char”. [misra-c2012-7.4][0m
+  char *evacmessage = "EVACUATE ";
+                      ^
+[1m../firealarm.c:147:9: [31mstyle:[39m Function types shall be in prototype form with named parameters. [misra-c2012-8.2][0m
+int main()
+        ^
+[1m../firealarm.c:40:18: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+struct tempnode *deletenodes(struct tempnode *templist, int after)
+                 ^
+[1m../firealarm.c:51:5: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+int compare(const void *first, const void *second)
+    ^
+[1m../firealarm.c:56:6: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+void tempmonitor(int level)
+     ^
+[1m../firealarm.c:130:7: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+void *openboomgate(void *arg)
+      ^
+[1m../firealarm.c:10:5: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+int shm_fd;
+    ^
+[1m../firealarm.c:11:16: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+volatile void *shm;
+               ^
+[1m../firealarm.c:13:5: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+int alarm_active = 0;
+    ^
+[1m../firealarm.c:14:17: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
+                ^
+[1m../firealarm.c:15:16: [31mstyle:[39m A compatible declaration shall be visible when an object or function with external linkage is defined. [misra-c2012-8.4][0m
+pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
+               ^
+[1m../firealarm.c:82:39: [31mstyle:[39m Both operands of an operator in which the usual arithmetic conversions are performed shall have the same essential type category. [misra-c2012-10.4][0m
+   int *sorttemp = malloc(sizeof(int) * MEDIAN_WINDOW);
+                                      ^
+[1m../firealarm.c:135:13: [31mstyle:[39m Both operands of an operator in which the usual arithmetic conversions are performed shall have the same essential type category. [misra-c2012-10.4][0m
+  if (bg->s == 'C') {
+            ^
+[1m../firealarm.c:139:13: [31mstyle:[39m Both operands of an operator in which the usual arithmetic conversions are performed shall have the same essential type category. [misra-c2012-10.4][0m
+  if (bg->s == 'O') {
+            ^
+[1m../firealarm.c:152:48: [31mstyle:[39m Both operands of an operator in which the usual arithmetic conversions are performed shall have the same essential type category. [misra-c2012-10.4][0m
+ pthread_t *threads = malloc(sizeof(pthread_t) * LEVELS);
+                                               ^
+[1m../firealarm.c:176:56: [31mstyle:[39m Both operands of an operator in which the usual arithmetic conversions are performed shall have the same essential type category. [misra-c2012-10.4][0m
+ pthread_t *boomgatethreads = malloc(sizeof(pthread_t) * (ENTRANCES + EXITS));
+                                                       ^
+[1m../firealarm.c:53:11: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+ return *((const int *)first) - *((const int *)second);
+          ^
+[1m../firealarm.c:64:12: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+  temp = *((int16_t *)(shm + addr));
+           ^
+[1m../firealarm.c:67:11: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+  newtemp = malloc(sizeof(struct tempnode));
+          ^
+[1m../firealarm.c:82:18: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+   int *sorttemp = malloc(sizeof(int) * MEDIAN_WINDOW);
+                 ^
+[1m../firealarm.c:91:12: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+   newtemp = malloc(sizeof(struct tempnode));
+           ^
+[1m../firealarm.c:132:22: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+ struct boomgate *bg = arg;
+                     ^
+[1m../firealarm.c:171:25: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+  char *alarm_trigger = (char *)shm + addr;
+                        ^
+[1m../firealarm.c:179:32: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+  volatile struct boomgate *bg = shm + addr;
+                               ^
+[1m../firealarm.c:184:32: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+  volatile struct boomgate *bg = shm + addr;
+                               ^
+[1m../firealarm.c:194:39: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+    volatile struct parkingsign *sign = shm + addr;
+                                      ^
+[1m../firealarm.c:155:70: [31mstyle:[39m A cast shall not be performed between pointer to void and an arithmetic type. [misra-c2012-11.6][0m
+  pthread_create(threads + i, NULL, (void *(*)(void *)) tempmonitor, (void *)i);
+                                                                     ^
+[1m../firealarm.c:63:23: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+  addr = 0150 * level + 2496;
+                      ^
+[1m../firealarm.c:114:19: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+    if (hightemps >= TEMPCHANGE_WINDOW * 0.9)
+                  ^
+[1m../firealarm.c:120:57: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+    if (templist->temperature - oldesttemp->temperature >= 8)
+                                                        ^
+[1m../firealarm.c:170:23: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+  int addr = 0150 * i + 2498;
+                      ^
+[1m../firealarm.c:178:22: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+  int addr = 288 * i + 96;
+                     ^
+[1m../firealarm.c:183:22: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+  int addr = 192 * i + 1536;
+                     ^
+[1m../firealarm.c:193:24: [31mstyle:[39m misra violation 1201 with no text in the supplied rule-texts-file [misra-c2012-12.1][0m
+    int addr = 288 * i + 192;
+                       ^
+[1m../firealarm.c:58:34: [31mstyle:[39m The comma operator should not be used. [misra-c2012-12.3][0m
+ struct tempnode *templist = NULL, *newtemp, *medianlist = NULL, *oldesttemp;
+                                 ^
+[1m../firealarm.c:59:11: [31mstyle:[39m The comma operator should not be used. [misra-c2012-12.3][0m
+ int count, addr, temp, mediantemp, hightemps;
+          ^
+[1m../firealarm.c:85:23: [31mstyle:[39m A full expression containing an increment (++) or decrement (--) operator should have no other potential side effects other than that caused by the increment or decrement operator. [misra-c2012-13.3][0m
+    sorttemp[count++] = t->temperature;
+                      ^
+[1m../firealarm.c:42:5: [31mstyle:[39m The controlling expression of an if statement and the controlling expression of an iteration-statement shall have essentially Boolean type. [misra-c2012-14.4][0m
+ if (templist->next) {
+    ^
+[1m../firealarm.c:158:6: [31mstyle:[39m The controlling expression of an if statement and the controlling expression of an iteration-statement shall have essentially Boolean type. [misra-c2012-14.4][0m
+  if (alarm_active) {
+     ^
+[1m../firealarm.c:159:4: [31mstyle:[39m The goto statement should not be used. [misra-c2012-15.1][0m
+   goto emergency_mode;
+   ^
+[1m../firealarm.c:47:3: [31mstyle:[39m A function should have a single point of exit at the end. [misra-c2012-15.5][0m
+  return NULL;
+  ^
+[1m../firealarm.c:105:5: [31mstyle:[39m The body of an iteration-statement or a selection-statement shall be a compound-statement. [misra-c2012-15.6][0m
+    if (t->temperature >= 58) hightemps++;
+    ^
+[1m../firealarm.c:114:5: [31mstyle:[39m The body of an iteration-statement or a selection-statement shall be a compound-statement. [misra-c2012-15.6][0m
+    if (hightemps >= TEMPCHANGE_WINDOW * 0.9)
+    ^
+[1m../firealarm.c:120:5: [31mstyle:[39m The body of an iteration-statement or a selection-statement shall be a compound-statement. [misra-c2012-15.6][0m
+    if (templist->temperature - oldesttemp->temperature >= 8)
+    ^
+[1m../firealarm.c:43:20: [31mstyle:[39m Functions shall not call themselves, either directly or indirectly. [misra-c2012-17.2][0m
+  templist->next = deletenodes(templist->next, after - 1);
+                   ^
+[1m../firealarm.c:73:14: [31mstyle:[39m The value returned by a function having non-void return type shall be used. [misra-c2012-17.7][0m
+  deletenodes(templist, MEDIAN_WINDOW);
+             ^
+[1m../firealarm.c:97:15: [31mstyle:[39m The value returned by a function having non-void return type shall be used. [misra-c2012-17.7][0m
+   deletenodes(medianlist, TEMPCHANGE_WINDOW);
+              ^
+[1m../firealarm.c:165:9: [31mstyle:[39m The value returned by a function having non-void return type shall be used. [misra-c2012-17.7][0m
+ fprintf(stderr, "*** ALARM ACTIVE ***\n");
+        ^
+[1m../firealarm.c:64:28: [31mstyle:[39m The +, -, += and -= operators should not be applied to an expression of pointer type. [misra-c2012-18.4][0m
+  temp = *((int16_t *)(shm + addr));
+                           ^
+[1m../firealarm.c:171:37: [31mstyle:[39m The +, -, += and -= operators should not be applied to an expression of pointer type. [misra-c2012-18.4][0m
+  char *alarm_trigger = (char *)shm + addr;
+                                    ^
+[1m../firealarm.c:179:38: [31mstyle:[39m The +, -, += and -= operators should not be applied to an expression of pointer type. [misra-c2012-18.4][0m
+  volatile struct boomgate *bg = shm + addr;
+                                     ^
+[1m../firealarm.c:184:38: [31mstyle:[39m The +, -, += and -= operators should not be applied to an expression of pointer type. [misra-c2012-18.4][0m
+  volatile struct boomgate *bg = shm + addr;
+                                     ^
+[1m../firealarm.c:194:45: [31mstyle:[39m The +, -, += and -= operators should not be applied to an expression of pointer type. [misra-c2012-18.4][0m
+    volatile struct parkingsign *sign = shm + addr;
+                                            ^
+[1m../firealarm.c:46:7: [31mstyle:[39m The memory allocation and deallocation functions of <stdlib.h> shall not be used. [misra-c2012-21.3][0m
+  free(templist);
+      ^
+[1m../firealarm.c:67:19: [31mstyle:[39m The memory allocation and deallocation functions of <stdlib.h> shall not be used. [misra-c2012-21.3][0m
+  newtemp = malloc(sizeof(struct tempnode));
+                  ^
+[1m../firealarm.c:82:26: [31mstyle:[39m The memory allocation and deallocation functions of <stdlib.h> shall not be used. [misra-c2012-21.3][0m
+   int *sorttemp = malloc(sizeof(int) * MEDIAN_WINDOW);
+                         ^
+[1m../firealarm.c:91:20: [31mstyle:[39m The memory allocation and deallocation functions of <stdlib.h> shall not be used. [misra-c2012-21.3][0m
+   newtemp = malloc(sizeof(struct tempnode));
+                   ^
+[1m../firealarm.c:152:29: [31mstyle:[39m The memory allocation and deallocation functions of <stdlib.h> shall not be used. [misra-c2012-21.3][0m
+ pthread_t *threads = malloc(sizeof(pthread_t) * LEVELS);
+                            ^
+[1m../firealarm.c:176:37: [31mstyle:[39m The memory allocation and deallocation functions of <stdlib.h> shall not be used. [misra-c2012-21.3][0m
+ pthread_t *boomgatethreads = malloc(sizeof(pthread_t) * (ENTRANCES + EXITS));
+                                    ^
+[1m../firealarm.c:1:0: [31mstyle:[39m The Standard Library input/output functions shall not be used. [misra-c2012-21.6][0m
+#include <stdio.h>
+^
+[1m../firealarm.c:87:4: [31mstyle:[39m The Standard Library functions bsearch and qsort of <stdlib.h> shall not be used. [misra-c2012-21.9][0m
+   qsort(sorttemp, MEDIAN_WINDOW, sizeof(int), compare);
+   ^
+[1m../firealarm.c:3:0: [31mstyle:[39m The Standard Library time and date functions shall not be used. [misra-c2012-21.10][0m
+#include <time.h>
+^
+[1m../firealarm.c:14:17: [31mstyle:[39m Functions and objects should not be defined with external linkage if they are referenced in only one translation unit. [misra-c2012-8.7][0m
+pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
+                ^
+[1m../firealarm.c:15:16: [31mstyle:[39m Functions and objects should not be defined with external linkage if they are referenced in only one translation unit. [misra-c2012-8.7][0m
+pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
+               ^
+[1m../firealarm.c:51:5: [31mstyle:[39m Functions and objects should not be defined with external linkage if they are referenced in only one translation unit. [misra-c2012-8.7][0m
+int compare(const void *first, const void *second)
+    ^

@@ -5,17 +5,17 @@ LDFLAGS= -lrt -lpthread
 
 all: buildall
 
-./build/manager.o: manager.c carlist.h carpark.h
-	$(CC) -c $< -o $@ $(CFLAGS) $(LDFLAGS)
+./build/manager: manager.c carlist.h carpark.h
+	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS)
 
-./build/simulator.o: simulator.c carlist.h carpark.h
-	$(CC) -c $< -o $@ $(CFLAGS) $(LDFLAGS)
+./build/simulator: simulator.c carlist.h carpark.h
+	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS)
 
-./build/firealarm.o: firealarm.c carpark.h
-	$(CC) -c $< -o $@ $(CFLAGS) $(LDFLAGS)
-	gcc ./build/firealarm.o -o ./build/firealarm
+./build/firealarm: firealarm.c carpark.h
+	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS)
 
-buildall: ./build/manager.o ./build/simulator.o ./build/firealarm.o
+buildall: ./build/manager ./build/simulator ./build/firealarm
+
 
 run:
 	./build/simulatorm
@@ -25,4 +25,4 @@ run:
 clean:
 	rm -f ./build/*.o
 
-.PHONY: all clean run buildall
+.PHONY: all clean run

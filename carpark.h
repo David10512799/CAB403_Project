@@ -6,11 +6,20 @@
 #include <stdlib.h>
 #endif
 
+#ifndef ENTRIES
+    #define ENTRIES 5
+#endif
+#ifndef EXITS 
+    #define EXITS 5
+#endif
+#ifndef LEVELS
+    #define LEVELS 5
+#endif
+#ifndef CARS_PER_LEVEL
+    #define CARS_PER_LEVEL 20
+#endif
+
 #define SHARE_NAME "PARKING"
-#define NUM_ENTRIES 5
-#define NUM_EXITS 5
-#define NUM_LEVELS 5
-#define CARS_PER_LEVEL 20
 #define EMPTY_LPR ""
 #define RAISING 'R'
 #define LOWERING 'L'

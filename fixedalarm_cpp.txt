@@ -1,27 +1,27 @@
-[1m../fixedalarm.c:208:22: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+../fixedalarm.c:208:22: style A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5]
     alarm_t *alarm = (alarm_t *)arg;
                      ^
-[1m../fixedalarm.c:241:22: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+../fixedalarm.c:241:22: style A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5]
     alarm_t *alarm = (alarm_t *)arg;
                      ^
-[1m../fixedalarm.c:258:22: [31mstyle:[39m A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5][0m
+../fixedalarm.c:258:22: style A conversion should not be performed from pointer to void into pointer to object. [misra-c2012-11.5]
     alarm_t *alarm = (alarm_t *)arg;
                      ^
-[1m../carpark.h:13:0: [31mstyle:[39m A project should not contain unused macro declarations. [misra-c2012-2.5][0m
+../carpark.h:13:0: style A project should not contain unused macro declarations. [misra-c2012-2.5]
 #define CARS_PER_LEVEL 20
 ^
-[1m../carpark.h:14:0: [31mstyle:[39m A project should not contain unused macro declarations. [misra-c2012-2.5][0m
+../carpark.h:14:0: style A project should not contain unused macro declarations. [misra-c2012-2.5]
 #define EMPTY_LPR ""
 ^
-[1m../carpark.h:16:0: [31mstyle:[39m A project should not contain unused macro declarations. [misra-c2012-2.5][0m
+../carpark.h:16:0: style A project should not contain unused macro declarations. [misra-c2012-2.5]
 #define LOWERING 'L'
 ^
-[1m../carpark.h:18:0: [31mstyle:[39m A project should not contain unused macro declarations. [misra-c2012-2.5][0m
+../carpark.h:18:0: style A project should not contain unused macro declarations. [misra-c2012-2.5]
 #define OPEN 'O'
 ^
-[1m../carpark.h:19:0: [31mstyle:[39m A project should not contain unused macro declarations. [misra-c2012-2.5][0m
+../carpark.h:19:0: style A project should not contain unused macro declarations. [misra-c2012-2.5]
 #define DENIED 'X'
 ^
-[1m../carpark.h:20:0: [31mstyle:[39m A project should not contain unused macro declarations. [misra-c2012-2.5][0m
+../carpark.h:20:0: style A project should not contain unused macro declarations. [misra-c2012-2.5]
 #define FULL 'F'
 ^

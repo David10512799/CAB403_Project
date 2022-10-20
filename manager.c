@@ -20,7 +20,7 @@ pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hash_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t billing_lock = PTHREAD_MUTEX_INITIALIZER;
-volatile int freespaces[NUM_LEVELS];
+volatile int freespaces[LEVELS];
 volatile float total_revenue = 0.00;
 
 typedef struct level_LPR_monitor level_LPR_monitor_t;
@@ -46,7 +46,7 @@ bool string_equal(char *a, char *b);
 void *monitor_entry(void *arg); void *monitor_exit(void *arg); void *monitor_level(void *arg);
 void *monitor_gate(void *arg);
 
-int main(int argc, char **argv) {
+int main(void) {
 
     // Initialise hashtable and insert plates from "plates.txt"
     
@@ -71,19 +71,19 @@ int main(int argc, char **argv) {
     pthread_create(&gui, NULL, generate_GUI, &carpark);
 
     // Initialise the list of cars with all spaces remaining
-    for( int i = 0; i < NUM_LEVELS; i++){
+    for( int i = 0; i < LEVELS; i++){
         freespaces[i] = CARS_PER_LEVEL;
     }
 
     // Begin monitoring Entrance License Plate Readers to detect Cars and Boom Gates put into OPEN status
-    for( int i = 0; i < NUM_ENTRIES; i++){
+    for( int i = 0; i < ENTRIES; i++){
         pthread_t entry_LPR, entry_gate;
         pthread_create(&entry_LPR, NULL, monitor_entry, &carpark.data->entrance[i]); //needs access to LPR and gate
         pthread_create(&entry_gate, NULL, monitor_gate, &carpark.data->exit[i].gate);
     }
 
     // Begin monitoring Level License Plate Readers to detect Cars
-    for( int i = 0; i < NUM_LEVELS; i++){
+    for( int i = 0; i < LEVELS; i++){
         // initialise struct for passing to thread so it knows which level to change the car to
         level_LPR_monitor_t monitor;
         monitor.level_LPR = &carpark.data->level[i].LPR;
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     }
     
     // Begin monitoring Exit License Plate Readers to detect Cars
-    for ( int i = 0; i < NUM_EXITS; i++)
+    for ( int i = 0; i < EXITS; i++)
     {
         pthread_t exit_LPR, exit_gate;
         pthread_create(&exit_LPR, NULL, monitor_exit, &carpark.data->exit[i]); // needs access to LPR and gate
@@ -274,7 +274,7 @@ char find_space()
     char retVal = FULL;
     int level = 0;
 
-    for( int i = 1; i < NUM_LEVELS; i++){
+    for( int i = 1; i < LEVELS; i++){
         level = freespaces[i] > freespaces[i-1] ? i + 1 : i;
     }
 
@@ -351,7 +351,7 @@ void *generate_GUI( void *arg )
         // Level information
         printf("\n\e[1mLevel\tCapacity\tLPR\t\tTemp (C)\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
-        for (int i = 0; i < NUM_LEVELS; i++)
+        for (int i = 0; i < LEVELS; i++)
         {
             printf("%d\n", i + 1); // level no. corrected from indexing value
             printf("%d/%d\t\t", CARS_PER_LEVEL - freespaces[i], CARS_PER_LEVEL); // capacity X out of Y
@@ -364,7 +364,7 @@ void *generate_GUI( void *arg )
         // Entry information
         printf("\n\e[1mEntry\tGate\t\tLPR\t\tDisplay\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
-        for (int i = 0; i < NUM_ENTRIES; i++)
+        for (int i = 0; i < ENTRIES; i++)
         {   
             // Shared memory value doesn't contain null terminator
             // Using sprintf to get the value and store in printf safe variable
@@ -382,7 +382,7 @@ void *generate_GUI( void *arg )
         // Exit information
         printf("\n\e[1mExit\tGate\t\tLPR\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
-        for (int i = 0; i < NUM_ENTRIES; i++)
+        for (int i = 0; i < ENTRIES; i++)
         {
             // Shared memory value doesn't contain null terminator
             // Using sprintf to get the value and store in printf safe variable

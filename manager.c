@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
@@ -8,6 +9,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
  
 #include "carpark.h"
 #include "carlist.h"
@@ -48,32 +50,39 @@ void *monitor_gate(void *arg);
 
 int main(void) {
 
+
     // Initialise hashtable and insert plates from "plates.txt"
-    
+
     if (!htab_init(&verified_cars, buckets))
     {
+        printf("1\n");
         printf("failed to initialise hash table\n");
         return EXIT_FAILURE;
     }
 
     htab_insert_plates(&verified_cars);
 
-    // htab_print(&verified_cars);
 
     // Get shared memory object
     shared_carpark_t carpark;
     carpark.name = SHARE_NAME;
-    carpark.fd = shm_open(SHARE_NAME, O_RDWR, 0666);
-    carpark.data = mmap(0, sizeof(carpark_t),PROT_READ | PROT_WRITE, MAP_SHARED, carpark.fd, 0);
-
-    // Generate GUI
-    pthread_t gui;
-    pthread_create(&gui, NULL, generate_GUI, &carpark);
-
+    if ( (carpark.fd = shm_open(SHARE_NAME, O_RDWR, 0)) < 0 ){
+        perror("shm_open");
+        carpark.data = NULL;
+        return false;
+    }
+    if ((carpark.data = mmap(0, sizeof(carpark_t),PROT_READ | PROT_WRITE, MAP_SHARED, carpark.fd, 0)) == (void *)-1 ) {
+        perror("mmap");
+        return false;
+    }
     // Initialise the list of cars with all spaces remaining
     for( int i = 0; i < LEVELS; i++){
         freespaces[i] = CARS_PER_LEVEL;
     }
+
+    // Generate GUI
+    pthread_t gui;
+    pthread_create(&gui, NULL, generate_GUI, &carpark);
 
     // Begin monitoring Entrance License Plate Readers to detect Cars and Boom Gates put into OPEN status
     for( int i = 0; i < ENTRIES; i++){
@@ -170,7 +179,7 @@ void *monitor_level(void *arg)
         }
 
         // reset LPR value and unlock mutex
-        lpr->level_LPR->plate = EMPTY_LPR;
+        strcpy(lpr->level_LPR->plate, EMPTY_LPR);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }
 }
@@ -206,7 +215,7 @@ void *monitor_exit(void *arg)
         pthread_mutex_unlock(&exit->gate.mutex);
 
         // unlock lpr mutex and reset LPR
-        exit->LPR.plate = EMPTY_LPR;
+        strcpy(exit->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&exit->LPR.mutex);
     }
 }
@@ -262,7 +271,7 @@ void *monitor_entry(void *arg)
         pthread_mutex_unlock(&entry->sign.mutex);
 
         // reset lpr unlock lpr mutex
-        entry->LPR.plate = EMPTY_LPR;
+        strcpy(entry->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&entry->LPR.mutex);
     }
 
@@ -331,20 +340,18 @@ void *generate_bill(void *arg)
 
 void *generate_GUI( void *arg )
 {
-    carpark_t *data = (carpark_t *)arg;
+    shared_carpark_t *carpark = (shared_carpark_t *)arg;
+    carpark_t *data = carpark->data;
     
     for(;;)
     {
-        ms_pause(50);
-        fflush(stdout);
-        printf("\033[2J"); // Clear screen
+        
 
         printf(
         "╔═══════════════════════════════════════════════╗\n"
-        "║                CARPARK SIMULATOR              ║    by DAVID AND DANIEL \n"
+        "║                CARPARK SIMULATOR              ║\n"
         "╚═══════════════════════════════════════════════╝\n"
         );
-        
         //Total revenue of 
         printf("\n\e[1mTotal Revenue:\e[m $%.2f\n\n", total_revenue);
 
@@ -353,49 +360,41 @@ void *generate_GUI( void *arg )
         printf("══════════════════════════════════════════════════════════════════\n\n");
         for (int i = 0; i < LEVELS; i++)
         {
-            printf("%d\n", i + 1); // level no. corrected from indexing value
+            printf("%d\t", i + 1); // level no. corrected from indexing value
             printf("%d/%d\t\t", CARS_PER_LEVEL - freespaces[i], CARS_PER_LEVEL); // capacity X out of Y
             printf("%s\t\t", data->level[i].LPR.plate); // Level LPR reading
             printf("%d\t\t", data->level[i].temperature.sensor);  // Level temperature reading
             printf("\n");
         }
-
+        fflush(stdout);
         printf("\n");
         // Entry information
         printf("\n\e[1mEntry\tGate\t\tLPR\t\tDisplay\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
         for (int i = 0; i < ENTRIES; i++)
-        {   
-            // Shared memory value doesn't contain null terminator
-            // Using sprintf to get the value and store in printf safe variable
-            char plate[PLATE_LENGTH];
-            sprintf(plate, data->entrance[i].LPR.plate); 
-
+        {
             printf("%d\t", i + 1); // entry no. corrected from indexing value
             printf("%s\t\t", gate_status(data->entrance[i].gate.status)); // state of entry gate
-            printf("%s\t\t", plate); // Entry LPR reading
+            printf("%s\t\t", data->entrance[i].LPR.plate); // Entry LPR reading
             printf("%c\t", data->entrance[i].sign.display); // Entry information sign display value
             printf("\n");
         }
-
+        fflush(stdout);
         printf("\n");
         // Exit information
         printf("\n\e[1mExit\tGate\t\tLPR\e[m\n");
         printf("══════════════════════════════════════════════════════════════════\n\n");
         for (int i = 0; i < ENTRIES; i++)
         {
-            // Shared memory value doesn't contain null terminator
-            // Using sprintf to get the value and store in printf safe variable
-            char plate[PLATE_LENGTH];
-            sprintf(plate, data->exit[i].LPR.plate); 
-
             printf("%d\t", i + 1); // exit no. corrected from indexing value
-            printf("%s\t", gate_status(data->exit[i].gate.status)); // state of exit gate
-            printf("%s\t", plate); // Exit LPR reading
+            printf("%s\t\t", gate_status(data->exit[i].gate.status)); // state of exit gate
+            printf("%s\t", data->exit[i].LPR.plate); // Exit LPR reading
             printf("\n");
         }
-
+        fflush(stdout);
         printf("\n");
+        ms_pause(50);
+        printf("\033[2J"); // Clear screen
     }
     return NULL;
 }

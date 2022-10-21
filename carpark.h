@@ -20,7 +20,8 @@
 #endif
 
 #define SHARE_NAME "PARKING"
-#define EMPTY_LPR ""
+#define EMPTY_LPR "------"
+#define EMPTY_SIGN '-'
 #define RAISING 'R'
 #define LOWERING 'L'
 #define CLOSED 'C'
@@ -43,7 +44,7 @@ struct LPR
 {
     pthread_mutex_t mutex;
     pthread_cond_t condition;
-    char *plate;
+    char plate[7];
 };
 
 typedef struct sign sign_t;

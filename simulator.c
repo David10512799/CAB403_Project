@@ -62,8 +62,22 @@ int main(void){
     plate_count = get_plate_count();
     printf("%d\n", plate_count);
 
+    // Create array and store plate char[] to it
+    char plate_registry_temp[plate_count][PLATE_LENGTH];
+    FILE* input_file = fopen("plates.txt", "r");
+    for (int i = 0; fscanf(input_file, "%s", plate_registry_temp[i]) != EOF; i++)
+    {
+    }
+    fclose(input_file);
+
+    // Create pointer array to each of the plates
     char **plate_registry = calloc(plate_count, PLATE_LENGTH);
-    generate_plates(plate_count, plate_registry);
+    for (int i = 0; i < plate_count; i++)
+    {
+        plate_registry[i] = plate_registry_temp[i];
+    }
+    
+    // generate_plates(plate_count, plate_registry);
     
     for (int i = 0; i < plate_count; i++)
     {
@@ -153,7 +167,9 @@ void generate_plates(int plates_count, char** plate_registry){
 
     while( fscanf(input_file, "%s", plate) != EOF)
     {
-        plate_registry[i] = plate;
+        char temp[PLATE_LENGTH];
+        strcpy(temp, plate);
+        plate_registry[i] = temp;
         printf("%s\n", plate_registry[i]);
         i++;
     }    
@@ -169,9 +185,9 @@ void *sim_car(void *arg)
     carpark_t *carpark = car->carpark;
     char *plate = car->plate;
 
-    int random_entry = rand() % NUM_ENTRIES;
-    int random_exit = rand() % NUM_EXITS;
-    int random_level = rand() % NUM_LEVELS;
+    int random_entry = rand() % ENTRIES;
+    int random_exit = rand() % EXITS;
+    int random_level = rand() % LEVELS;
     
     //Create Queue
     //When car reaches front of Queue

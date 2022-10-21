@@ -5,13 +5,10 @@
 #include <inttypes.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <errno.h>
-#include <ctype.h>
-
+#include <assert.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include "carpark.h"
@@ -321,15 +318,16 @@ void init_carpark_values(carpark_t* park)
     for (int i = 0; i < 5; i++)
     {
         // ENTRANCES
-        park->entrance[i].gate.status = 'C';
+        park->entrance[i].gate.status = CLOSED;
         pthread_mutex_init(&park->entrance[i].gate.mutex, &mutex_attr);
         pthread_cond_init(&park->entrance[i].gate.condition, &cond_attr);
 
-        
-        park->entrance[i].LPR.plate = EMPTY_LPR;
+
+        strcpy(park->entrance[i].LPR.plate, EMPTY_LPR);
         pthread_mutex_init(&park->entrance[i].LPR.mutex, &mutex_attr);
         pthread_cond_init(&park->entrance[i].LPR.condition, &cond_attr);
 
+        park->entrance[i].sign.display = EMPTY_SIGN;
         pthread_mutex_init(&park->entrance[i].sign.mutex, &mutex_attr);
         pthread_cond_init(&park->entrance[i].sign.condition, &cond_attr);        
 
@@ -338,12 +336,12 @@ void init_carpark_values(carpark_t* park)
         pthread_mutex_init(&park->exit[i].gate.mutex, &mutex_attr);
         pthread_cond_init(&park->exit[i].gate.condition, &cond_attr);
 
-        park->exit[i].LPR.plate = EMPTY_LPR;
+        strcpy(park->exit[i].LPR.plate, EMPTY_LPR);
         pthread_mutex_init(&park->exit[i].LPR.mutex, &mutex_attr);
         pthread_cond_init(&park->exit[i].LPR.condition, &cond_attr);
 
         // LEVELS
-        park->level[i].LPR.plate = EMPTY_LPR;
+        strcpy(park->level[i].LPR.plate, EMPTY_LPR);
         pthread_mutex_init(&park->level[i].LPR.mutex, &mutex_attr);
         pthread_cond_init(&park->level[i].LPR.condition, &cond_attr);
 

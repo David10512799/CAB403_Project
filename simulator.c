@@ -19,12 +19,64 @@
 
 extern int errno;
 
+shared_carpark_t carpark;
+
 typedef struct car_sim car_sim_t;
 struct car_sim
 {
     carpark_t *carpark;
     char *plate;
 };
+typedef struct node node_t;
+struct node
+{
+    car_sim_t car;
+    node_t *next;
+};
+
+node_t *node_add(node_t *head, car_sim_t car)
+{
+    node_t *newNode = malloc(sizeof(node_t));
+    if (newNode == NULL)
+    {
+        return NULL;
+    }    
+    newNode->car = car;
+    newNode->next = head;
+    return newNode;
+}
+// find car by plate
+node_t *node_find_name(node_t *head, char *plate)
+{
+    for ( ; head != NULL; head = head->next)
+    {
+        if (strcmp(head->car.plate, plate) == 0)
+        {
+            return head;
+        }        
+    }
+    return NULL;    
+}
+node_t *node_delete(node_t *head, char *plate)
+{
+    if (strcmp(&head->car.plate, plate) == 0)
+    {
+        node_t* newHead = head->next;
+        free(head);
+        return newHead;
+    }
+    node_t *del = node_find_name(head, plate);
+    node_t *temp = head;
+    for (; head != NULL; head = head->next)
+    {
+        if (head->next == del)
+        {
+            head->next = del->next;
+            free(del);
+        }        
+    }
+    return temp;
+}
 //Car Simulation
 
 void generate_plates(int arg, char ** argg);
@@ -44,7 +96,6 @@ int plate_count;
 int main(void){
 
     // Generate Shared Memory
-    shared_carpark_t carpark;
     
     if (!init_carpark(&carpark))
     {
@@ -74,59 +125,51 @@ int main(void){
     fclose(input_file);
 
     // Create pointer array to each of the plates
-    char **plate_registry = calloc(plate_count, PLATE_LENGTH);
+    // char **plate_registry = calloc(plate_count, PLATE_LENGTH);
+    char *plate_registry[plate_count];
     for (int i = 0; i < plate_count; i++)
     {
         plate_registry[i] = plate_registry_temp[i];
     }
-    
-    // generate_plates(plate_count, plate_registry);
-    
+        
     for (int i = 0; i < plate_count; i++)
     {
-        printf("%s", plate_registry[i]);
-
+        printf("%s\n", plate_registry[i]);
     }
-    
-    
-    // for(int i=0; i < plate_count; i++){
-    //     printf("%s\n", plate_registry[i]);
-    // }
 
-    //printf("%s", plate_registry[25]);
-    //printf("\n");
-
-    //start_car_simulation(plate_registry, carpark, &verified_cars, plate_count);
+    start_car_simulation(plate_registry, carpark, &verified_cars, plate_count);
 
     return EXIT_SUCCESS;
 }
 
+// node_t *car_list = { .car = NULL, .next = NULL };
+node_t car_list;
 void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_t *verified_cars, int plate_count){
+    // car_list.car = NULL;
+    // car_list.next = NULL;
     // Simulate cars while firealarms are off
     while (!carpark.data->level[0].temperature.alarm) 
     {   
         car_t *car;
         char *key;
-        plate_registry;
 
+        // Generate random valid plates until found one that is not being used
         do {
         srand(time(NULL));
         int plate_number;
         plate_number = (rand() % (plate_count -1));
         key = plate_registry[plate_number]; // random number between 0 and plate_count
-        //printf("%s", key);
+        printf("%s\n", key);
+        printf("%p plate registry pointer\n", plate_registry[plate_number]);
 
-        //car = htab_find(verified_cars, key);
+        car = htab_find(verified_cars, key);
 
         } while(car->in_carpark);
 
-        // pthread_t valid_sim;
-        // car_sim_t sim;
-        // sim.carpark = carpark.data;
-        // sim.plate = key;
-        // pthread_create(&valid_sim, NULL, sim_car, &sim);
+        pthread_t valid_sim;
+        pthread_create(&valid_sim, NULL, sim_car, key);
 
-        // ms_pause(100);
+        ms_pause(100);
 
         // char *invalid_plate = "123ABC";
 
@@ -135,7 +178,7 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
         // pthread_create(&invalid_sim, NULL, sim_car, &sim);
 
         // ms_pause(100); //random number between 1 to 100;
-        break;
+        // break;
     }    
 
 }
@@ -160,64 +203,58 @@ int get_plate_count(){
     return plate_count;
 }
 
-void generate_plates(int plates_count, char** plate_registry){
-    // Read Plates File
-    FILE* input_file = fopen("plates.txt", "r");
-
-    // Going back to start of file
-    char plate[PLATE_LENGTH];
-    int i = 0;
-
-    while( fscanf(input_file, "%s", plate) != EOF)
-    {
-        char temp[PLATE_LENGTH];
-        strcpy(temp, plate);
-        plate_registry[i] = temp;
-        printf("%s\n", plate_registry[i]);
-        i++;
-    }    
-
-    fclose(input_file);
-}
-
-
 // create thread
 void *sim_car(void *arg)
 {  
-    car_sim_t *car = (car_sim_t *)arg;
-    carpark_t *carpark = car->carpark;
-    char *plate = car->plate;
+    char *plate = (char*)arg;
+
+    node_t *new_head = node_add(&car_list, *car);
+    car_list->car = new_head;
+
+    printf("%s head plate \n", car_list->car->plate);
+    printf("%p head plate pointer\n", car_list->car->plate);
+    printf("%p head node pointer\n", car_list);
+    if (car_list->next != NULL)
+    {
+        printf("%s back one plate\n", car_list->next->car->plate);
+        printf("%p back one plate pointer\n", car_list->next->car->plate);
+        printf("%p back one node pointer\n", car_list->next);
+    }
+        
 
     int random_entry = rand() % ENTRIES;
     int random_exit = rand() % EXITS;
     int random_level = rand() % LEVELS;
     
     //Create Queue
-    //When car reaches front of Queue
-    //Send plate to entrance (1 through 5), await response.
-    car->carpark->entrance[random_entry].LPR.plate;
 
-    //Set Cars random Parameters (Level and Exit)
-    car->carpark->level[random_level].LPR.plate;
-    car->carpark->exit[random_exit].LPR.plate;
+    printf("cue goes here\n");
 
-    //pthread_mutex_lock(&carpark->entrance->LPR.mutex);
-    //while (string_equal(carpark->entrance->LPR.plate, EMPTY_LPR))
-    //pthread_cond_wait(&carpark->entrance->sign.display, &carpark->entrance->sign.mutex);
+    // //When car reaches front of Queue
+    // //Send plate to entrance (1 through 5), await response.
+    // car->carpark->entrance[random_entry].LPR.plate;
 
-    if(isdigit(carpark->entrance->sign.display) != 0)
-    {
-        //Remove Car from Queue
-        return NULL;
-    }
+    // //Set Cars random Parameters (Level and Exit)
+    // car->carpark->level[random_level].LPR.plate;
+    // car->carpark->exit[random_exit].LPR.plate;
 
-    //Wait for Boom gate to OPEN
-    //pthread_cond_wait(&carpark->entrance->gate.status, &carpark->entrance->gate.status);
+    // //pthread_mutex_lock(&carpark->entrance->LPR.mutex);
+    // //while (string_equal(carpark->entrance->LPR.plate, EMPTY_LPR))
+    // //pthread_cond_wait(&carpark->entrance->sign.display, &carpark->entrance->sign.mutex);
 
-    if(carpark->entrance->gate.status == 'O')
-    {
-        car->carpark->level->LPR.plate;
-    }
+    // if(isdigit(carpark->entrance->sign.display) != 0)
+    // {
+    //     //Remove Car from Queue
+    //     return NULL;
+    // }
+
+    // //Wait for Boom gate to OPEN
+    // //pthread_cond_wait(&carpark->entrance->gate.status, &carpark->entrance->gate.status);
+
+    // if(carpark->entrance->gate.status == 'O')
+    // {
+    //     car->carpark->level->LPR.plate;
+    // }
  
     return NULL;
 }

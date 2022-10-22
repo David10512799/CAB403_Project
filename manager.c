@@ -241,9 +241,13 @@ void *monitor_entry(void *arg)
         pthread_mutex_lock(&space_lock);
 
         if ( htab_search_plate(&verified_cars, plate) )
+        {
             space = find_space();
+        }
         else
+        {
             space = DENIED;
+        }
 
 
         // Set gate to raising if level = 1 - 5
@@ -272,10 +276,10 @@ void *monitor_entry(void *arg)
         pthread_mutex_unlock(&entry->sign.mutex);
 
         // Reset entry status on sign
-        ms_pause(10);
-        pthread_mutex_lock(&entry->sign.condition);
-        entry->sign.display = EMPTY_SIGN;
-        pthread_mutex_unlock(&entry->sign.mutex);
+        // ms_pause(10);
+        // pthread_mutex_lock(&entry->sign.mutex);
+        // entry->sign.display = EMPTY_SIGN;
+        // pthread_mutex_unlock(&entry->sign.mutex);
 
         // reset lpr unlock lpr mutex
         strcpy(entry->LPR.plate, EMPTY_LPR);
@@ -295,7 +299,9 @@ char find_space()
     }
 
     if (level != 0)
-        retVal = (char)level;
+    {
+        retVal = level + '0';
+    }
 
     return retVal;
 }

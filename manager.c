@@ -22,6 +22,7 @@ pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hash_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t billing_lock = PTHREAD_MUTEX_INITIALIZER;
+
 volatile int freespaces[LEVELS];
 volatile float total_revenue = 0.00;
 
@@ -88,7 +89,7 @@ int main(void) {
     for( int i = 0; i < ENTRIES; i++){
         pthread_t entry_LPR, entry_gate;
         pthread_create(&entry_LPR, NULL, monitor_entry, &carpark.data->entrance[i]); //needs access to LPR and gate
-        pthread_create(&entry_gate, NULL, monitor_gate, &carpark.data->exit[i].gate);
+        pthread_create(&entry_gate, NULL, monitor_gate, &carpark.data->entrance[i].gate);
     }
 
     // Begin monitoring Level License Plate Readers to detect Cars
@@ -265,10 +266,16 @@ void *monitor_entry(void *arg)
         // Display entry status on sign
         pthread_mutex_lock(&entry->sign.mutex);
 
-        entry->sign.display = level;
+        entry->sign.display = space;
 
         pthread_cond_signal(&entry->sign.condition);
         pthread_mutex_unlock(&entry->sign.mutex);
+
+        // Reset entry status on sign
+        ms_pause(10);
+        pthread_mutex_lock(&entry->sign.condition);
+        entry->sign.display = EMPTY_SIGN;
+        pthread_mutex_unclock(&entry->sign.mutex);
 
         // reset lpr unlock lpr mutex
         strcpy(entry->LPR.plate, EMPTY_LPR);

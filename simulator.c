@@ -151,7 +151,9 @@ void *sim_car(void *arg)
     pthread_mutex_unlock(&queueSleepMutex);
     
     // Give licence plate to LPR and signal to check
-    printf("%s level is %d\n", plate, random_entry + 1);
+    printf("%s entry is %d\n", plate, random_entry + 1);
+    char test = 4 + '4';
+    printf("%c is 4 in char\n", test);
     pthread_mutex_lock(&carpark.data->entrance[random_entry].LPR.mutex);
     strcpy(carpark.data->entrance[random_entry].LPR.plate, plate);
     pthread_mutex_unlock(&carpark.data->entrance[random_entry].LPR.mutex);
@@ -160,11 +162,11 @@ void *sim_car(void *arg)
     printf("checking sign\n");
     printf("the sign says %c\n", carpark.data->entrance->sign.display);
     pthread_mutex_lock(&carpark.data->entrance->sign.mutex);
-    // while (carpark.data->entrance->sign.display == '-')
-    // {
-    printf("waiting\n");
-    pthread_cond_wait(&carpark.data->entrance[random_entry].sign.condition, &carpark.data->entrance[random_entry].sign.mutex);
-    // }
+    while (carpark.data->entrance->sign.display == '-')
+    {
+        printf("waiting\n");
+        pthread_cond_wait(&carpark.data->entrance[random_entry].sign.condition, &carpark.data->entrance[random_entry].sign.mutex);
+    }
     pthread_mutex_unlock(&carpark.data->entrance->sign.mutex);
     printf("the sign says %c\n", carpark.data->entrance->sign.display);
 

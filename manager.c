@@ -273,7 +273,7 @@ void *monitor_entry(void *arg)
 
         // Reset entry status on sign
         ms_pause(10);
-        pthread_mutex_lock(&entry->sign.condition);
+        pthread_mutex_lock(&entry->sign.mutex);
         entry->sign.display = EMPTY_SIGN;
         pthread_mutex_unlock(&entry->sign.mutex);
 

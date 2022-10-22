@@ -275,7 +275,7 @@ void *monitor_entry(void *arg)
         ms_pause(10);
         pthread_mutex_lock(&entry->sign.condition);
         entry->sign.display = EMPTY_SIGN;
-        pthread_mutex_unclock(&entry->sign.mutex);
+        pthread_mutex_unlock(&entry->sign.mutex);
 
         // reset lpr unlock lpr mutex
         strcpy(entry->LPR.plate, EMPTY_LPR);

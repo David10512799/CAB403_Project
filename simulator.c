@@ -119,11 +119,11 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
 
         ms_pause(100);
 
-        // char *invalid_plate = "123ABC"; //random invalid plate
-        // pthread_t invalid_sim;
-        // pthread_create(&invalid_sim, NULL, sim_car, invalid_plate);
+        char *invalid_plate = "123ABC"; //random invalid plate
+        pthread_t invalid_sim;
+        pthread_create(&invalid_sim, NULL, sim_car, invalid_plate);
 
-        // ms_pause(100); //random number between 1 to 100;
+        ms_pause(100); //random number between 1 to 100;
         // break;
     }    
 }
@@ -149,28 +149,83 @@ void *sim_car(void *arg)
         pthread_cond_wait(&wakeUp, &queueSleepMutex);
     } 
     pthread_mutex_unlock(&queueSleepMutex);
+
+    // Wait for the manager to set the boomgate to lowering
+    pthread_mutex_lock(&carpark.data->entrance[random_entry].gate.mutex);
+    printf("gate is %c\n", carpark.data->entrance[random_entry].gate.status);
+    while (carpark.data->entrance[random_entry].gate.status != LOWERING && carpark.data->entrance[random_entry].gate.status != CLOSED)
+    {
+        printf("waitng on gate\n");
+        pthread_cond_wait(&carpark.data->entrance[random_entry].gate.condition, &carpark.data->entrance[random_entry].gate.mutex);
+        printf("gate is %c", carpark.data->entrance[random_entry].gate.status);
+    }
+    pthread_mutex_unlock(&carpark.data->entrance[random_entry].gate.mutex);
+
+    // Close the boomgate
+    if (carpark.data->entrance[random_entry].gate.status == LOWERING)
+    {
+        printf("Waiting for boomgate to close\n");
+        ms_pause(10);
+        carpark.data->entrance[random_entry].gate.status = CLOSED;
+    }
     
-    // Give licence plate to LPR and signal to check
+    // Give licence plate to LPR and signal manager to check it
     printf("%s entry is %d\n", plate, random_entry + 1);
-    char test = 4 + '4';
-    printf("%c is 4 in char\n", test);
     pthread_mutex_lock(&carpark.data->entrance[random_entry].LPR.mutex);
     strcpy(carpark.data->entrance[random_entry].LPR.plate, plate);
     pthread_mutex_unlock(&carpark.data->entrance[random_entry].LPR.mutex);
     pthread_cond_signal(&carpark.data->entrance[random_entry].LPR.condition);
 
+    // Wait for the display to update and read its value
     printf("checking sign\n");
-    printf("the sign says %c\n", carpark.data->entrance->sign.display);
-    pthread_mutex_lock(&carpark.data->entrance->sign.mutex);
-    while (carpark.data->entrance->sign.display == '-')
+    printf("the sign says %c\n", carpark.data->entrance[random_entry].sign.display);
+    pthread_mutex_lock(&carpark.data->entrance[random_entry].sign.mutex);
+    while (carpark.data->entrance[random_entry].sign.display == '-')
     {
         printf("waiting\n");
         pthread_cond_wait(&carpark.data->entrance[random_entry].sign.condition, &carpark.data->entrance[random_entry].sign.mutex);
     }
-    pthread_mutex_unlock(&carpark.data->entrance->sign.mutex);
-    printf("the sign says %c\n", carpark.data->entrance->sign.display);
+    pthread_mutex_unlock(&carpark.data->entrance[random_entry].sign.mutex);
+    printf("the sign says %c\n", carpark.data->entrance[random_entry].sign.display);
+    char display = carpark.data->entrance[random_entry].sign.display;
 
+    // If denied entry drive off
+    int level = (int)display - 48;
+    if(!(0 < level) || !(level < 6))
+    {
+        printf("denied entry\n");
+
+        ms_pause(10);
+
+        pthread_mutex_lock(&queueChangeMutex);
+        node_delete(car_list, plate);
+        pthread_mutex_unlock(&queueChangeMutex);
+        pthread_cond_signal(&wakeUp);
+
+        return NULL;
+    }
+
+    // Wait for raising
+    pthread_mutex_lock(&carpark.data->entrance[random_entry].gate.mutex);
+    printf("gate is %c\n", carpark.data->entrance[random_entry].gate.status);
+    while (carpark.data->entrance[random_entry].gate.status != RAISING)
+    {
+        pthread_cond_wait(&carpark.data->entrance[random_entry].gate.condition, &carpark.data->entrance[random_entry].gate.mutex);
+        printf("gate is %c", carpark.data->entrance[random_entry].gate.status);
+    }
+    pthread_mutex_unlock(&carpark.data->entrance[random_entry].gate.mutex);
+    
+    // Wait for boomgate to raise
     printf("%s waiting at boomgate...\n", plate);
+    ms_pause(10);
+    carpark.data->entrance[random_entry].gate.status = OPEN;
+    pthread_cond_signal(&carpark.data->entrance[random_entry].gate.condition);
+
+    // Travel to level
+    ms_pause(10); // could be after level lpr
+
+    // Trigger level LPR
+
     // ms_pause(200);
 
     // Remove car from line and signal next car
@@ -179,29 +234,6 @@ void *sim_car(void *arg)
     node_delete(car_list, plate);
     pthread_mutex_unlock(&queueChangeMutex);
     pthread_cond_signal(&wakeUp);
-
-    //When car reaches front of Queue
-    //Send plate to entrance (1 through 5), await response.
-
-    //Set Cars random Parameters (Level and Exit)
-    // car->carpark->entrance[random_entry].LPR.plate;
-    // car->carpark->exit[random_exit].LPR.plate;
-
-    // pthread_mutex_lock(&carpark->entrance[random_entry].LPR.mutex);
-    // carpark.data->entrance[random_entry].LPR.plate = plate;
-    // pthread_cond_signal(&carpark->entrance[random_entry].LPR.condition);
-    // pthread_mutex_unlock(&carpark->entrance[random_entry].LPR.mutex);
-    // pthread_cond_wait(&carpark->entrance[random_entry].sign.condition, &carpark->entrance[random_entry].sign.mutex);
-
-    // if(isdigit(carpark->entrance[random_level].sign.display != 0))
-    // {
-    //     //Remove Car from Queue (parking lot?)
-    //     return NULL;
-    // }
-
-
-    // //Wait for Boom gate to OPEN
-    // pthread_cond_wait(&carpark->entrance->gate.condition, &carpark->entrance->gate.mutex);
 
     // if(carpark->entrance->gate.status == 'O')
     // {

@@ -165,13 +165,17 @@ car_t *htab_find(htab_t *h, char *key)
 
 bool htab_search_plate(htab_t *h, char *search)
 {
+    bool retVal = false;
     for (size_t i = 0; i < h->size; ++i)
     {
         for (car_t *bucket = h->buckets[i]; bucket != NULL; bucket = bucket->next) {
-            if (bucket->plate == search && bucket->in_carpark != true) return true;
+            if (strcmp(bucket->plate, search) == 0)
+            {
+                retVal = true;
+            } 
         }
     }
-    return false;
+    return retVal;
 }
 
 

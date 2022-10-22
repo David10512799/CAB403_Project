@@ -199,4 +199,3 @@ pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 ../firealarm.c:51:5: style Functions and objects should not be defined with external linkage if they are referenced in only one translation unit. [misra-c2012-8.7]
 int compare(const void *first, const void *second)
     ^
-tesing

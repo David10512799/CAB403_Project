@@ -17,6 +17,7 @@
 extern int errno;
 
 shared_carpark_t carpark;
+htab_t verified_cars;
 
 // pthread_mutex_t queueChangeMutex = PTHREAD_MUTEX_INITIALIZER;
 // pthread_mutex_t queueSleepMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -72,7 +73,7 @@ int main(void){
     }
 
     // Generate Hash Table
-    htab_t verified_cars;
+
     int buckets = 40;
 
     if (!htab_init(&verified_cars, buckets))
@@ -160,57 +161,50 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
     // Simulate cars while firealarms are off
     while (!carpark.data->level[0].temperature.alarm) 
     {   
-        
-        int gen_rand = rand() % 2; // Can be 0 or 1
+
         car_t *car;
         char *key;
         char rand_plate[PLATE_LENGTH];
         int rand_wait = (rand() % 99) + 1;
 
         // generate either a valid or invalid plate and start simulating a car with it
-        switch (gen_rand){
-            case 0: // Valid plate            
-                // Generate random valid plates until found one that is not being used
-                do {                
-                    srand(time(NULL));
-                    int plate_number;
-                    plate_number = (rand() % (plate_count -1));
-                    key = plate_registry[plate_number]; // random number between 0 and plate_count
-                    car = htab_find(verified_cars, key);
+        // Valid plate            
+        // Generate random valid plates until found one that is not being used
+        do {                
+            srand(time(NULL));
+            int plate_number;
+            plate_number = (rand() % (plate_count -1));
+            key = plate_registry[plate_number]; // random number between 0 and plate_count
+            car = htab_find(verified_cars, key);
 
-                } while(car->in_carpark || node_find_name_array(car_list, key, ENTRIES) != NULL);
-                
-                pthread_t valid_sim;
-                pthread_create(&valid_sim, NULL, sim_car, key);
+        } while(car->in_carpark || node_find_name_array(car_list, key, ENTRIES) != NULL);
+        
+        pthread_t valid_sim;
+        pthread_create(&valid_sim, NULL, sim_car, key);
 
-                ms_pause(rand_wait); // Random time between 1 and 100             
-                break;
+        ms_pause(rand_wait); // Random time between 1 and 100             
 
-            case 1: // Invalid plate
-                do
-                {
-                    srand(time(NULL));
-                    for (int i = 0; i < 3; i++)
-                    {
-                        rand_plate[i] = (rand() % 10) + 48;
-                    }
-                    for (int i = 3; i < 6; i++)
-                    {
-                        rand_plate[i] = (rand() % 26) + 65;
-                    }
-                    car = htab_find(verified_cars, rand_plate);
-                } while (node_find_name_array(car_list, key, ENTRIES) != NULL || car != NULL);
-                
+        // Invalid plate
+        do
+        {
+            srand(time(NULL));
+            for (int i = 0; i < 3; i++)
+            {
+                rand_plate[i] = (rand() % 10) + 48;
+            }
+            for (int i = 3; i < 6; i++)
+            {
+                rand_plate[i] = (rand() % 26) + 65;
+            }
+            car = htab_find(verified_cars, rand_plate);
+        } while (node_find_name_array(car_list, key, ENTRIES) != NULL || car != NULL);
+        
 
-                pthread_t invalid_sim;
-                pthread_create(&invalid_sim, NULL, sim_car, rand_plate);
+        pthread_t invalid_sim;
+        pthread_create(&invalid_sim, NULL, sim_car, rand_plate);
 
-                ms_pause(rand_wait); //random number between 1 to 100;
-                break;    
-
-            default:
-                break;
-        }
+        ms_pause(rand_wait); //random number between 1 to 100;
+ 
 
         // // break;
     }    
@@ -266,14 +260,15 @@ void *sim_car(void *arg)
     // printf("checking sign\n");
     // printf("the sign says %c\n", carpark.data->entrance[random_entry].sign.display);
     pthread_mutex_lock(&carpark.data->entrance[random_entry].sign.mutex);
-    while (carpark.data->entrance[random_entry].sign.display == '-')
+    while (carpark.data->entrance[random_entry].sign.display == EMPTY_SIGN)
     {
         printf("%s is waiting for display to update\n", plate);
         pthread_cond_wait(&carpark.data->entrance[random_entry].sign.condition, &carpark.data->entrance[random_entry].sign.mutex);
     }
     pthread_mutex_unlock(&carpark.data->entrance[random_entry].sign.mutex);
-    printf("%s read the sign saying %c\n", plate, carpark.data->entrance[random_entry].sign.display);
+
     char display = carpark.data->entrance[random_entry].sign.display;
+    printf("%s read the sign saying %c\n", plate, display);
 
     // If denied entry drive off
     int level = (int)display - 48;
@@ -291,7 +286,8 @@ void *sim_car(void *arg)
         return NULL;
     }
     printf("level value is %d\n", level);
-    // level -= 1;
+    level = level - 1;
+    printf("index is %d\n", level);
     // Wait for boomgate to open
     // printf("%s waiting for boomgate to open\n", plate);
 
@@ -312,6 +308,9 @@ void *sim_car(void *arg)
     pthread_mutex_unlock(&queueMutex);
     // printf("sent signal\n");
     pthread_cond_broadcast(&wakeUp);
+
+    car_t *car = htab_find(&verified_cars, plate);
+    car->in_carpark = true;
 
     // Travel to level
     ms_pause(10); // could be after level lpr

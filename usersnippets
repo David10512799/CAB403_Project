@@ -1,0 +1,86 @@
+{
+	// Place your snippets for c here. Each snippet is defined under a snippet name and has a prefix, body and 
+	// description. The prefix is what is used to trigger the snippet and the body will be expanded and inserted. Possible variables are:
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. Placeholders with the 
+	// same ids are connected.
+
+	"Quick Print NewLine": {
+		"prefix": "nl",
+		"body": [
+			"printf(\"\\n\");",
+			"$0",
+
+		],
+		"description": "Prints a newline character. Cursor placed on next line"
+	},
+
+	"Quick Print Text": {
+		"prefix": "pt",
+		"body": [
+			"printf(\"$1\\n\");"
+		],
+		"description": "Gives basic printf function finished with a new line character" 
+	},
+
+	"Quick Print Integer": {
+		"prefix": "pd",
+		"body": [
+			"printf(\"$1%d$2\\n\", $3);"
+		],
+		"description": "Gives basic printf function finished with a new line character and one integer variable"
+	},
+
+	"Quick Print String": {
+		"prefix": "ps",
+		"body": [
+			"printf(\"$1%s$2\\n\", $3);"
+		],
+		"description": "Gives basic printf function finished with a new line character and one string variable"
+	},
+
+	"Quick Print Char": {
+		"prefix": "pc",
+		"body": [
+			"printf(\"$1%c$2\\n\", $3);"
+		],
+		"description": "Gives basic printf function finished with a new line character and one char variable"
+	},
+
+	"For loop: int i": {
+		"prefix": "fori",
+		"body":	[
+			"for( int i = 0; i < $1; i++){",
+			"    $0",
+			"}",
+		],
+		"description": "Gives standard for loop with i = 0, i < {}; i++"
+	},
+
+	"For loop: int j": {
+		"prefix": "forj",
+		"body":	[
+			"for( int j = 0; j < $1; j++){",
+			"    $2",
+			"}",
+		],
+		"description": "Gives standard for loop with j = 0; j < {}; j++"
+	},
+
+
+	"Boiler Plate C file": {
+		"prefix": "boiler",
+		"body": [
+			"#include <stdio.h>",
+			"#include <stdlib.h>",
+			"",
+			"int main(int argc, char **argv){",
+			"",			
+			"    $0",
+			"",
+			"    return 0;",
+			"}",
+		],
+		"description": "Provides boiler plate for standard C file with headers included"
+	}
+
+}

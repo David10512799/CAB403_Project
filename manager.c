@@ -81,7 +81,7 @@ int main(void) {
         freespaces[i] = CARS_PER_LEVEL;
     }
 
-    // Generate GUI
+    // // Generate GUI
     pthread_t gui;
     pthread_create(&gui, NULL, generate_GUI, &carpark);
 
@@ -204,8 +204,13 @@ void *monitor_exit(void *arg)
         pthread_create(&bill, NULL, generate_bill, plate);
         pthread_join(bill, NULL);
         // Remove car from carpark
-        pthread_t car;
-        pthread_create(&car, NULL, delete_car, plate);
+        pthread_t remove_car;
+        pthread_create(&remove_car, NULL, delete_car, plate);
+        pthread_mutex_lock(&space_lock);
+
+        car_t * car = htab_find(&verified_cars, plate);
+        int index = car->current_level - 1;
+        freespaces[index]++;
 
         // Lock gate mutex
         pthread_mutex_lock(&exit->gate.mutex);
@@ -252,8 +257,10 @@ void *monitor_entry(void *arg)
 
         // Set gate to raising if level = 1 - 5
         int level = (int)space - 48;
-        if (0 < level && level < 6)
+        if ((0 < level) && (level < 6))
         {
+            freespaces[level - 1]--;
+
             generate_car(plate, level);
 
             pthread_mutex_lock(&entry->gate.mutex);
@@ -292,16 +299,25 @@ void *monitor_entry(void *arg)
 char find_space()
 {
     char retVal = FULL;
-    int level = 0;
-
+    int level = 1;
+    int highest = freespaces[0];
     for( int i = 1; i < LEVELS; i++){
-        level = freespaces[i] > freespaces[i-1] ? i + 1 : i;
+        if(freespaces[i] > highest)
+        {
+            level = i + 1;
+            highest = freespaces[i];
+        }
+        // printf("freespaces %d\n", freespaces[i-1]);
     }
+    // printf("freespaces %d\n", freespaces[4]);
+    // printf("level %d\n", level);
 
     if (level != 0)
     {
         retVal = level + '0';
     }
+    // printf("space %c\n", retVal);
+
 
     return retVal;
 }
@@ -406,7 +422,7 @@ void *generate_GUI( void *arg )
         }
         fflush(stdout);
         printf("\n");
-        ms_pause(50);
+        ms_pause(7);
         printf("\033[2J"); // Clear screen
     }
     return NULL;

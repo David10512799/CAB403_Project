@@ -35,7 +35,8 @@ struct node
     node_t *next;
 };
 
-node_t *car_list[ENTRIES];
+node_t *entry_list[ENTRIES];
+node_t *exit_list[EXITS];
 
 //Car Simulation
 
@@ -165,7 +166,8 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
         car_t *car;
         char *key;
         char rand_plate[PLATE_LENGTH];
-        int rand_wait = (rand() % 99) + 1;
+        // int rand_wait = (rand() % 99) + 1;
+        int rand_wait = 10;
 
         // generate either a valid or invalid plate and start simulating a car with it
         // Valid plate            
@@ -177,7 +179,7 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
             key = plate_registry[plate_number]; // random number between 0 and plate_count
             car = htab_find(verified_cars, key);
 
-        } while(car->in_carpark || node_find_name_array(car_list, key, ENTRIES) != NULL);
+        } while(car->in_carpark || node_find_name_array(entry_list, key, ENTRIES) != NULL);
         
         pthread_t valid_sim;
         pthread_create(&valid_sim, NULL, sim_car, key);
@@ -197,7 +199,7 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
                 rand_plate[i] = (rand() % 26) + 65;
             }
             car = htab_find(verified_cars, rand_plate);
-        } while (node_find_name_array(car_list, key, ENTRIES) != NULL || car != NULL);
+        } while (node_find_name_array(entry_list, key, ENTRIES) != NULL || car != NULL);
         
 
         pthread_t invalid_sim;
@@ -215,23 +217,23 @@ void *sim_car(void *arg)
     char *plate = (char*)arg;
 
     int random_entry = rand() % ENTRIES;
-    // int random_exit = rand() % EXITS;
+    int random_exit = rand() % EXITS;
     
     // Add car to queue
     pthread_mutex_lock(&queueMutex);
-    // node_t *new_head = node_add(car_list[random_entry], plate);
-    car_list[random_entry] = node_add(car_list[random_entry], plate);;   
-    printf("%s joined the line for entry %d\n", car_list[random_entry]->plate, random_entry + 1);
+    // node_t *new_head = node_add(entry_list[random_entry], plate);
+    entry_list[random_entry] = node_add(entry_list[random_entry], plate);;   
+    printf("%s joined the line for entry %d\n", entry_list[random_entry]->plate, random_entry + 1);
     pthread_mutex_unlock(&queueMutex); 
 
     // Wait in line until boomgate is available    
     pthread_mutex_lock(&queueMutex);
-    while(node_find_name(car_list[random_entry], plate)->next != NULL){
-        // printf("%s next is %s\n", plate, node_find_name(car_list[random_entry], plate)->next->plate);
+    while(node_find_name(entry_list[random_entry], plate)->next != NULL){
+        // printf("%s next is %s\n", plate, node_find_name(entry_list[random_entry], plate)->next->plate);
         pthread_cond_wait(&wakeUp, &queueMutex);
         // printf("%s signaled\n", plate);
-        // if (node_find_name(car_list[random_entry], plate)->next != NULL){
-        //     printf("%s next is %s\n", plate, node_find_name(car_list[random_entry], plate)->next->plate);
+        // if (node_find_name(entry_list[random_entry], plate)->next != NULL){
+        //     printf("%s next is %s\n", plate, node_find_name(entry_list[random_entry], plate)->next->plate);
         // }
     } 
     // printf("%s passed signal loop\n", plate);
@@ -279,7 +281,7 @@ void *sim_car(void *arg)
         ms_pause(10);
 
         pthread_mutex_lock(&queueMutex);
-        car_list[random_entry] = node_delete(car_list[random_entry], plate);
+        entry_list[random_entry] = node_delete(entry_list[random_entry], plate);
         pthread_mutex_unlock(&queueMutex);
         pthread_cond_broadcast(&wakeUp);
 
@@ -304,7 +306,7 @@ void *sim_car(void *arg)
     // Remove car from line and signal next car
     printf("%s entered car park\n", plate);
     pthread_mutex_lock(&queueMutex);
-    car_list[random_entry] = node_delete(car_list[random_entry], plate);
+    entry_list[random_entry] = node_delete(entry_list[random_entry], plate);
     pthread_mutex_unlock(&queueMutex);
     // printf("sent signal\n");
     pthread_cond_broadcast(&wakeUp);
@@ -315,13 +317,63 @@ void *sim_car(void *arg)
     // Travel to level
     ms_pause(10); // could be after level lpr
 
-    // Trigger level LPR  
-
+    // Trigger level LPR
     pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
     strcpy(carpark.data->level[level].LPR.plate, plate);
     pthread_cond_signal(&carpark.data->level[level].LPR.condition);
     pthread_mutex_unlock(&carpark.data->level[level].LPR.mutex);
- 
+    
+    // Park at the carpark
+    ms_pause(100); // 100 to 10,000
+
+    // Add car to exit list
+    pthread_mutex_lock(&queueMutex);
+    exit_list[random_exit] = node_add(exit_list[random_exit], plate);;   
+    printf("%s joined the line for exit %d\n", exit_list[random_exit]->plate, random_exit + 1);
+    pthread_mutex_unlock(&queueMutex); 
+
+    // Wait in line until next to boomgate
+    pthread_mutex_lock(&queueMutex);
+    while(node_find_name(exit_list[random_exit], plate)->next != NULL){
+        pthread_cond_wait(&wakeUp, &queueMutex);
+    } 
+    pthread_mutex_unlock(&queueMutex);
+    
+    // Wait at boomgate until it is fully closed
+    printf("%s arrived at boomgate %d\n", plate, random_exit + 1);
+    pthread_mutex_lock(&localGateMutex);
+    while(carpark.data->exit[random_exit].gate.status != CLOSED)
+    {
+        printf("%s waiting on gate to close. gate is %c\n", plate, carpark.data->exit[random_exit].gate.status);
+        pthread_cond_wait(&localGate, &localGateMutex);
+    }
+    pthread_mutex_unlock(&localGateMutex);
+
+    // Give licence plate to lpr
+    pthread_mutex_lock(&carpark.data->exit[random_exit].LPR.mutex);
+    strcpy(carpark.data->exit[random_exit].LPR.plate, plate);
+    pthread_mutex_unlock(&carpark.data->exit[random_exit].LPR.mutex);
+    pthread_cond_signal(&carpark.data->exit[random_exit].LPR.condition);
+
+    // Wait for boomgate to open
+    pthread_mutex_lock(&localGateMutex);
+    while (carpark.data->exit[random_exit].gate.status != OPEN)
+    {
+        printf("%s is waiting for gate to open. It is %c\n", plate, carpark.data->exit[random_exit].gate.status);
+        pthread_cond_wait(&localGate, &localGateMutex);
+    }
+    pthread_mutex_unlock(&localGateMutex);
+    
+    // Remove car from line and signal next car
+    printf("%s exited car park\n", plate);
+    pthread_mutex_lock(&queueMutex);
+    exit_list[random_exit] = node_delete(exit_list[random_exit], plate);
+    pthread_mutex_unlock(&queueMutex);
+    pthread_cond_broadcast(&wakeUp);
+
+    car = htab_find(&verified_cars, plate);
+    car->in_carpark = false;
+
     return NULL;
 }
 

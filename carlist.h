@@ -39,7 +39,7 @@ size_t djb_hash(char *c);
 bool htab_add(htab_t *h,char *plate);
 void htab_print(htab_t *h);
 bool htab_search_plate(htab_t *h, char *search);
-void add_car(htab_t *h, car_t *car);
+void add_car(htab_t *h, car_t car);
 car_t *htab_find(htab_t *h, char *key);
 
 
@@ -187,10 +187,10 @@ void remove_car(htab_t *h, char *plate)
 }
 
 
-void add_car(htab_t *h, car_t *new_car)
+void add_car(htab_t *h, car_t new_car)
 {
-    car_t *car = htab_find(h, new_car->plate);
-    car->current_level = car->current_level;
-    car->entry_time = car->entry_time;
+    car_t *car = htab_find(h, new_car.plate);
+    car->current_level = new_car.current_level;
+    car->entry_time = new_car.entry_time;
     car->in_carpark = true;
 }

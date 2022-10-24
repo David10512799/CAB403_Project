@@ -81,7 +81,7 @@ int main(void) {
         freespaces[i] = CARS_PER_LEVEL;
     }
 
-    // // Generate GUI
+    // Generate GUI
     pthread_t gui;
     pthread_create(&gui, NULL, generate_GUI, &carpark);
 
@@ -116,9 +116,8 @@ int main(void) {
     while (true)
     {
         sleep(10);
-        // printf("%s\n", carpark.data->level[0].LPR.plate);
-        // ms_pause(1);
     }
+
     return EXIT_SUCCESS;
 
 }
@@ -172,20 +171,21 @@ void *monitor_level(void *arg)
         // if car is supposed to be, no need to change these values
         // if car is not supposed to be, and there is also no room, no need to change these values
         // if car is not supposed to be, and there is room, values must be changed
-        // if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
-        // {
-        //     // Decrement number of free spaces on level
-        //     freespaces[index]--;
-        //     // Correct for indexing
-        //     int current_level = car->current_level - 1; 
-        //     // Increment number of free spaces on level
-        //     freespaces[current_level]++;
-        //     // Edit current level to new value
-        //     car->current_level = level;
-        // }
+        if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
+        {   
+
+            // Decrement number of free spaces on level
+            freespaces[index]--;
+            // Correct for indexing
+            int current_level = car->current_level - 1; 
+            // Increment number of free spaces on level
+            freespaces[current_level]++;
+            // Edit current level to new value
+            car->current_level = level;
+        }
 
         // reset LPR value and unlock mutex
-        ms_pause(100);
+        ms_pause(50);
         strcpy(lpr->level_LPR->plate, EMPTY_LPR);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }
@@ -339,7 +339,7 @@ void generate_car(char *plate, int level)
 
     new_car.entry_time = entry_time;
 
-    add_car(&verified_cars, &new_car);
+    add_car(&verified_cars, new_car);
 }
 
 void *delete_car(void *arg)
@@ -409,7 +409,7 @@ void *generate_GUI( void *arg )
         for (int i = 0; i < ENTRIES; i++)
         {
             printf("%d\t", i + 1); // entry no. corrected from indexing value
-            printf("%s\t\t", gate_status(data->entrance[i].gate.status)); // state of entry gate
+            printf("%s\t", gate_status(data->entrance[i].gate.status)); // state of entry gate
             printf("%s\t\t", data->entrance[i].LPR.plate); // Entry LPR reading
             printf("%c\t", data->entrance[i].sign.display); // Entry information sign display value
             printf("\n");
@@ -422,7 +422,7 @@ void *generate_GUI( void *arg )
         for (int i = 0; i < ENTRIES; i++)
         {
             printf("%d\t", i + 1); // exit no. corrected from indexing value
-            printf("%s\t\t", gate_status(data->exit[i].gate.status)); // state of exit gate
+            printf("%s\t", gate_status(data->exit[i].gate.status)); // state of exit gate
             printf("%s\t", data->exit[i].LPR.plate); // Exit LPR reading
             printf("\n");
         }
@@ -439,16 +439,16 @@ char *gate_status(char code)
     switch((int)code)
     {
         case 67:
-            return "Closed";
+            return "Closed  ";
             break;
         case 79:
-            return "Open";
+            return "Open    ";
             break;
         case 76:
             return "Lowering";
             break;
         case 82:
-            return "Raising";
+            return "Raising ";
             break;
         default:
             return NULL;

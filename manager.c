@@ -93,14 +93,15 @@ int main(void) {
     }
 
     // Begin monitoring Level License Plate Readers to detect Cars
+    level_LPR_monitor_t monitors[LEVELS];
+
     for( int i = 0; i < LEVELS; i++){
         // initialise struct for passing to thread so it knows which level to change the car to
-        level_LPR_monitor_t monitor;
-        monitor.level_LPR = &carpark.data->level[i].LPR;
-        monitor.id = i;
+        monitors[i].level_LPR = &carpark.data->level[i].LPR;
+        monitors[i].id = i;
 
         pthread_t level_LPR;
-        pthread_create(&level_LPR, NULL, monitor_level, &monitor);
+        pthread_create(&level_LPR, NULL, monitor_level, &monitors[i]);
     }
     
     // Begin monitoring Exit License Plate Readers to detect Cars
@@ -112,8 +113,12 @@ int main(void) {
     }
     
 
-    while (true) sleep(10);
-
+    while (true)
+    {
+        sleep(10);
+        // printf("%s\n", carpark.data->level[0].LPR.plate);
+        // ms_pause(1);
+    }
     return EXIT_SUCCESS;
 
 }
@@ -154,8 +159,8 @@ void *monitor_level(void *arg)
         pthread_mutex_lock(&lpr->level_LPR->mutex);
         while (string_equal(lpr->level_LPR->plate, EMPTY_LPR))
             pthread_cond_wait(&lpr->level_LPR->condition, &lpr->level_LPR->mutex);
-
         int index = lpr->id;
+        // printf("Index %d %d\n", index, lpr.id);
         // Corrected from indexing value to actual level
         int level = index + 1; 
         char *plate = lpr->level_LPR->plate;
@@ -167,19 +172,20 @@ void *monitor_level(void *arg)
         // if car is supposed to be, no need to change these values
         // if car is not supposed to be, and there is also no room, no need to change these values
         // if car is not supposed to be, and there is room, values must be changed
-        if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
-        {
-            // Decrement number of free spaces on level
-            freespaces[index]--;
-            // Correct for indexing
-            int current_level = car->current_level - 1; 
-            // Increment number of free spaces on level
-            freespaces[current_level]++;
-            // Edit current level to new value
-            car->current_level = level;
-        }
+        // if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
+        // {
+        //     // Decrement number of free spaces on level
+        //     freespaces[index]--;
+        //     // Correct for indexing
+        //     int current_level = car->current_level - 1; 
+        //     // Increment number of free spaces on level
+        //     freespaces[current_level]++;
+        //     // Edit current level to new value
+        //     car->current_level = level;
+        // }
 
         // reset LPR value and unlock mutex
+        ms_pause(100);
         strcpy(lpr->level_LPR->plate, EMPTY_LPR);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }

@@ -166,10 +166,10 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
         car_t *car;
         char *key;
         char rand_plate[PLATE_LENGTH];
-        // int rand_wait = (rand() % 99) + 1;
-        int rand_wait = 10;
+        int rand_wait = (rand() % 99) + 1;
+        // int rand_wait = 10;
+        node_t *in_line;
 
-        // generate either a valid or invalid plate and start simulating a car with it
         // Valid plate            
         // Generate random valid plates until found one that is not being used
         do {                
@@ -178,8 +178,10 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
             plate_number = (rand() % (plate_count -1));
             key = plate_registry[plate_number]; // random number between 0 and plate_count
             car = htab_find(verified_cars, key);
-
-        } while(car->in_carpark || node_find_name_array(entry_list, key, ENTRIES) != NULL);
+            pthread_mutex_lock(&queueMutex);
+            in_line = node_find_name_array(entry_list, key, ENTRIES);
+            pthread_mutex_unlock(&queueMutex);
+        } while(car->in_carpark || in_line != NULL);
         
         pthread_t valid_sim;
         pthread_create(&valid_sim, NULL, sim_car, key);
@@ -189,6 +191,7 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
         // Invalid plate
         do
         {
+            // rand_plate = NULL;
             srand(time(NULL));
             for (int i = 0; i < 3; i++)
             {
@@ -199,11 +202,16 @@ void start_car_simulation(char **plate_registry, shared_carpark_t carpark, htab_
                 rand_plate[i] = (rand() % 26) + 65;
             }
             car = htab_find(verified_cars, rand_plate);
-        } while (node_find_name_array(entry_list, key, ENTRIES) != NULL || car != NULL);
+            pthread_mutex_lock(&queueMutex);
+            in_line = node_find_name_array(entry_list, rand_plate, ENTRIES);
+            pthread_mutex_unlock(&queueMutex);
+            
+        } while ( car != NULL || in_line != NULL);
         
-
+        char invalid_plate[PLATE_LENGTH];
+        strcpy(invalid_plate, rand_plate);
         pthread_t invalid_sim;
-        pthread_create(&invalid_sim, NULL, sim_car, rand_plate);
+        pthread_create(&invalid_sim, NULL, sim_car, invalid_plate);
 
         ms_pause(rand_wait); //random number between 1 to 100;
  
@@ -418,11 +426,13 @@ node_t *node_find_name_array(node_t **node_array, char *plate, int array_len){
         // printf("no way does it get stuck here right?\n");
         if (node_find_name(node_array[i], plate) != NULL)
         {
+            // printf("%s\n", plate);
             // printf("found dupe\n");
             return node_array[i];
         }
         // printf("passed node find if\n");
     }
+    // printf("returned NULL\n");
     return NULL;    
 }
 

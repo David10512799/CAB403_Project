@@ -209,14 +209,13 @@ void *monitor_exit(void *arg)
         pthread_t bill;
         pthread_create(&bill, NULL, generate_bill, plate);
         pthread_join(bill, NULL);
-        // Remove car from carpark
-        pthread_t remove_car;
-        pthread_create(&remove_car, NULL, delete_car, plate);
-        pthread_mutex_lock(&space_lock);
 
+        // Remove car from carpark
         car_t * car = htab_find(&verified_cars, plate);
         int index = car->current_level - 1;
         freespaces[index]++;
+
+        remove_car(&verified_cars, plate);
 
         // Lock gate mutex
         pthread_mutex_lock(&exit->gate.mutex);
@@ -227,6 +226,7 @@ void *monitor_exit(void *arg)
         pthread_mutex_unlock(&exit->gate.mutex);
 
         // unlock lpr mutex and reset LPR
+        ms_pause(10);
         strcpy(exit->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&exit->LPR.mutex);
     }
@@ -342,13 +342,6 @@ void generate_car(char *plate, int level)
     add_car(&verified_cars, new_car);
 }
 
-void *delete_car(void *arg)
-{
-    char *plate = (char *)arg;
-    remove_car(&verified_cars, plate);
-    return NULL;
-}
-
 void *generate_bill(void *arg)
 {
     char *plate = (char *)arg;
@@ -366,7 +359,7 @@ void *generate_bill(void *arg)
     // Update billing records
     pthread_mutex_lock(&billing_lock);
     FILE* bill = fopen("billing.txt", "a+");
-    fprintf(bill, "%s $%.2f", plate, cost);
+    fprintf(bill, "%s $%.2f\n", plate, cost);
     fclose(bill);
     pthread_mutex_unlock(&billing_lock);
 

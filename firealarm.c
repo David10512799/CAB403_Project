@@ -231,8 +231,6 @@ static void *tempmonitor(void *arg)
 
     printf("alarm status is %d?\n", *alarm->status);
 
-
-
 	while(!*alarm->status) {
         printf("temp is %d\n", temperature->sensor);
 		
@@ -313,10 +311,10 @@ static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *a
 
     if (raw_count == TEMPCHANGE_WINDOW )
     {
-        for( int i = 1; i < raw_count; i++){
+        for( int i = 1; i < raw_count; i+=2){
             if(raw_temp[i] == raw_temp[i - 1])
             {
-                *consecutive_count++;
+                *consecutive_count = *consecutive_count + 1;
             }
             else
             {
@@ -325,7 +323,7 @@ static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *a
         }
     }
 
-    if ((bad_value_count > 2) || (*consecutive_count == (3 * TEMPCHANGE_WINDOW - 1)))
+    if ((bad_value_count > 2) || (*consecutive_count > (100 * TEMPCHANGE_WINDOW)))
     {
         printf("hardware failure alarm triggered\n");
         pthread_mutex_lock(alarm->mutex);

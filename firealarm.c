@@ -322,7 +322,7 @@ static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *a
         }
     }
 
-    if ((bad_value_count > 2) || (consecutive_count == TEMPCHANGE_WINDOW))
+    if ((bad_value_count > 2) || (consecutive_count == TEMPCHANGE_WINDOW - 1))
     {
         printf("hardware failure alarm triggered\n");
         pthread_mutex_lock(alarm->mutex);

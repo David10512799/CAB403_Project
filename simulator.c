@@ -154,17 +154,22 @@ int main(int argc, char **argv){
     //Cleanup protocol
 
     printf("alarm was triggered and car gen has stopped\n");
-    ms_pause(10000);
+    while(true)
+    {
+        sleep(10);
+    }
 
     return EXIT_SUCCESS;
 }
 
 void *temp_sim(void *arg){
     temperature_t *sensor = (temperature_t *)arg;
-    int temp = -22;
+    int temp = 22;
+    time_t start_time = time(NULL);
     while (!sensor->alarm)
     {
         int direction = rand() % 2;
+
         // Reasonable temp values? 15 to 30 celcius?
         // Randomly raise or decrease temp by 1 with a max of 30 and min of 15
         switch (alarm_mode)
@@ -188,13 +193,75 @@ void *temp_sim(void *arg){
             break;
         case 1: // Trigger alarm by rate of raise fire
             // printf("case 1\n");
-            temp += 15;
+            
+            if ((start_time - time(NULL)) < -20) // After 20 seconds since starting
+            {
+                temp += 15;
+            }   
+            else
+            {
+                if (direction)
+                {
+                    if (temp < 30)
+                    {
+                        temp++;
+                    } 
+                }
+                else
+                {
+                    if (temp > 15)
+                    {
+                        temp--;                
+                    } 
+                }
+            }         
             break;
         case 2: // Trigger alarm by fixed temperature fire
             // printf("case 2\n");
-            temp += 1;            
+            if ((start_time - time(NULL)) < -20)
+            {
+                temp += 1;
+            }
+            else
+            {
+                if (direction)
+                {
+                    if (temp < 30)
+                    {
+                        temp++;
+                    } 
+                }
+                else
+                {
+                    if (temp > 15)
+                    {
+                        temp--;                
+                    } 
+                }   
+            }
             break;
         case 3: // Trigger alarm by hardware failure
+            if ((start_time - time(NULL)) < -20)
+            {
+                ;
+            }
+            else
+            {
+                if (direction)
+                {
+                    if (temp < 30)
+                    {
+                        temp++;
+                    } 
+                }
+                else
+                {
+                    if (temp > 15)
+                    {
+                        temp--;                
+                    } 
+                } 
+            }
             // printf("case 3\n");
             break;
         default:

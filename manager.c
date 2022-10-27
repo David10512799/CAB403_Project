@@ -17,6 +17,8 @@
 
 size_t buckets = 40;
 htab_t verified_cars;
+volatile int *alarm_on;
+volatile int end_monitors = 0;
 
 pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -26,7 +28,8 @@ pthread_cond_t space_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t revenue_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t hash_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t billing_cond = PTHREAD_COND_INITIALIZER;
-
+pthread_mutex_t alarm_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t alarm_cond = PTHREAD_COND_INITIALIZER;
 
 
 volatile int freespaces[LEVELS];
@@ -38,7 +41,6 @@ struct level_LPR_monitor
     int id;
     LPR_t *level_LPR;
 };
-
 
 
 //Function declarations
@@ -57,6 +59,7 @@ void *monitor_gate(void *arg);
 
 int main(void) {
 
+    
 
     // Initialise hashtable and insert plates from "plates.txt"
 
@@ -86,6 +89,9 @@ int main(void) {
     for( int i = 0; i < LEVELS; i++){
         freespaces[i] = CARS_PER_LEVEL;
     }
+
+    // Initialise the global alarm_on variable
+    alarm_on = &carpark.data->level[0].temperature.alarm;
 
     // Generate GUI
     pthread_t gui;
@@ -118,14 +124,41 @@ int main(void) {
         pthread_create(&exit_gate, NULL, monitor_gate, &carpark.data->exit[i].gate);
     }
     
-
-    while (true)
+    // Wait for alarm to go off
+    pthread_mutex_lock(&alarm_lock);
+    while (!alarm_on)
     {
-        sleep(10);
+        pthread_cond_wait(&alarm_cond, &alarm_lock);
+    }
+    pthread_mutex_unlock(&alarm_lock);
+
+    bool empty = false;
+
+    // Wait for cars to leave the carpark
+    while(!empty)
+    {
+        for( int i = 0; i < LEVELS; i++){
+            if (freespaces[i] == CARS_PER_LEVEL)
+                empty = true;
+            else
+                empty = false;
+        }
     }
 
-    return EXIT_SUCCESS;
+    // Turn off the alarms
+    for( int i = 0; i < LEVELS; i++){
+        carpark.data->level[i].temperature.alarm = 0;
+    }
+    // End threads monitoring levels and exits etc
+    end_monitors = 1;
 
+
+    // Unmap memory before the program closes
+    munmap(&carpark.data, sizeof(carpark_t));
+    carpark.data = NULL;
+    carpark.fd = -1;
+
+    return EXIT_SUCCESS;
 }
 
 
@@ -136,7 +169,7 @@ void *monitor_gate(void *arg)
 
     gate_t *gate = (gate_t *)arg;
 
-    for(;;)
+    while(!alarm_on)
     {
         //lock gate mutex and wait for signal
         pthread_mutex_lock(&gate->mutex);
@@ -155,13 +188,14 @@ void *monitor_gate(void *arg)
         pthread_mutex_unlock(&gate->mutex);
     }
 
+    return NULL;
 }
 
 void *monitor_level(void *arg)
 {
     level_LPR_monitor_t *lpr = (level_LPR_monitor_t *)arg;
 
-    for(;;)
+    while(!end_monitors)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&lpr->level_LPR->mutex);
@@ -199,13 +233,14 @@ void *monitor_level(void *arg)
         strcpy(lpr->level_LPR->plate, EMPTY_LPR);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }
+    return NULL;
 }
 
 void *monitor_exit(void *arg)
 {
     exit_t *exit = (exit_t *)arg;
 
-    for(;;)
+    while(!end_monitors)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&exit->LPR.mutex);
@@ -240,13 +275,14 @@ void *monitor_exit(void *arg)
         strcpy(exit->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&exit->LPR.mutex);
     }
+    return NULL;
 }
 
 void *monitor_entry(void *arg)
 {
     entrance_t *entry = (entrance_t *)arg;
 
-    for (;;)
+    while (!alarm_on)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&entry->LPR.mutex);
@@ -311,7 +347,7 @@ void *monitor_entry(void *arg)
         strcpy(entry->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&entry->LPR.mutex);
     }
-
+    return NULL;
 }
 
 // Find the level with the most spots remaining or return FULL

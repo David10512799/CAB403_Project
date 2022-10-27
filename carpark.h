@@ -111,7 +111,7 @@ bool monitor_alarms(level_t *level)
     return true; 
 }
 
-#define TIMEX 100 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
+#define TIMEX 10 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
 
 void ms_pause(int time)
 {

@@ -24,8 +24,8 @@ pthread_cond_t entry_cond[ENTRIES];
 pthread_mutex_t exit_mutex[EXITS];
 pthread_cond_t exit_cond[EXITS];
 
-pthread_mutex_t localGateMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t localGate = PTHREAD_COND_INITIALIZER;
+// pthread_mutex_t localGateMutex = PTHREAD_MUTEX_INITIALIZER;
+// pthread_cond_t localGate = PTHREAD_COND_INITIALIZER;
 
 
 typedef struct node node_t;
@@ -164,13 +164,13 @@ void *temp_sim(void *arg){
     int temp = -22;
     while (!sensor->alarm)
     {
+        int direction = rand() % 2;
         // Reasonable temp values? 15 to 30 celcius?
         // Randomly raise or decrease temp by 1 with a max of 30 and min of 15
         switch (alarm_mode)
         {
         case 0: // Normal temp generation
-            printf("case 0\n");
-            int direction = rand() % 2;
+            // printf("case 0\n");
             if (direction)
             {
                 if (temp < 30)
@@ -187,21 +187,21 @@ void *temp_sim(void *arg){
             }
             break;
         case 1: // Trigger alarm by rate of raise fire
-            printf("case 1\n");
+            // printf("case 1\n");
             temp += 15;
             break;
         case 2: // Trigger alarm by fixed temperature fire
-            printf("case 2\n");
+            // printf("case 2\n");
             temp += 1;            
             break;
         case 3: // Trigger alarm by hardware failure
-            printf("case 3\n");
+            // printf("case 3\n");
             break;
         default:
             break;
         }
         
-        temp += 3;
+        // temp += 3;
         sensor->sensor = temp;
         // int rand_pause = (rand() % 5) + 1;
         ms_pause(100);
@@ -217,12 +217,13 @@ void *monitor_gate(void *arg)
     {
         //lock gate mutex and wait for signal
         pthread_mutex_lock(&gate->mutex);
-        while(gate->status != LOWERING && gate->status != RAISING)
+        while((gate->status == CLOSED) || (gate->status == OPEN))
         {
             pthread_cond_wait(&gate->condition, &gate->mutex);
         }
         // delay for 10ms * TIMEX
         ms_pause(10);
+        printf("*************************************************");
         
         char status = gate->status;
 
@@ -237,7 +238,7 @@ void *monitor_gate(void *arg)
 
         // signal condition variable and unlock mutex
         pthread_cond_signal(&gate->condition); // Signal manager it set to open or closed
-        pthread_cond_broadcast(&localGate); // Signal car to check boomgate status
+        // pthread_cond_broadcast(&localGate); // Signal car to check boomgate status
         pthread_mutex_unlock(&gate->mutex);
     }
 
@@ -289,7 +290,7 @@ void *sim_car(void *arg)
             {
                 pthread_mutex_unlock(&entry_mutex[i]);
             }          
-            printf("valid dupe\n");
+            // printf("valid dupe\n");
         } while(car->in_carpark || in_line != NULL);
         strcpy(plate, key);
         pthread_mutex_lock(&valid_lock);
@@ -355,15 +356,16 @@ void *sim_car(void *arg)
 
     // Wait at boomgate until it is fully closed
     printf("%s arrived at boomgate %d\n", plate, random_entry + 1);
-    pthread_mutex_lock(&localGateMutex);
-    while(carpark.data->entrance[random_entry].gate.status != CLOSED)
-    {
-        printf("%s waiting on gate to close. gate is %c\n", plate, carpark.data->entrance[random_entry].gate.status);
-        pthread_cond_wait(&localGate, &localGateMutex);
-        // printf("%s gate signaled. gate is %c\n", plate, carpark.data->entrance[random_entry].gate.status);
-    }
-    // printf("%s passed closed gate loop\n", plate);
-    pthread_mutex_unlock(&localGateMutex);
+    // pthread_mutex_lock(&carpark.data->entrance[random_entry].gate.mutex);
+    // while(carpark.data->entrance[random_entry].gate.status != CLOSED)
+    // {
+    //     printf("%s waiting on gate to close. gate is %c\n", plate, carpark.data->entrance[random_entry].gate.status);
+    //     pthread_cond_wait(&carpark.data->entrance[random_entry].gate.condition, &carpark.data->entrance[random_entry].gate.mutex);
+    //     // printf("%s gate signaled. gate is %c\n", plate, carpark.data->entrance[random_entry].gate.status);
+    // }
+    // // printf("%s passed closed gate loop\n", plate);
+    // pthread_cond_signal(&carpark.data->entrance[random_entry].)
+    // pthread_mutex_unlock(&carpark.data->entrance[random_entry].gate.mutex);
     
     // Give licence plate to LPR and signal manager to check it
     // printf("%s entry is %d\n", plate, random_entry + 1);
@@ -407,14 +409,15 @@ void *sim_car(void *arg)
     // Wait for boomgate to open
     // printf("%s waiting for boomgate to open\n", plate);
 
-    pthread_mutex_lock(&localGateMutex);
+    pthread_mutex_lock(&carpark.data->entrance[random_entry].gate.mutex);
     // printf("gate status is %c\n", carpark.data->entrance[random_entry].gate.status);
     while (carpark.data->entrance[random_entry].gate.status != OPEN)
     {
         printf("%s is waiting for gate to open. It is %c\n", plate, carpark.data->entrance[random_entry].gate.status);
-        pthread_cond_wait(&localGate, &localGateMutex);
+        pthread_cond_wait(&carpark.data->entrance[random_entry].gate.condition, &carpark.data->entrance[random_entry].gate.mutex);
     }
-    pthread_mutex_unlock(&localGateMutex);
+    pthread_cond_signal(&carpark.data->entrance[random_entry].gate.condition);
+    pthread_mutex_unlock(&carpark.data->entrance[random_entry].gate.mutex);
     // printf("gate status is %c\n", carpark.data->entrance[random_entry].gate.status);
     
     // Remove car from line and signal next car
@@ -433,12 +436,16 @@ void *sim_car(void *arg)
 
     // Trigger level LPR
     pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
+    while(string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
+    {
+        pthread_cond_wait(&carpark.data->level[level].LPR.condition, &carpark.data->level[level].LPR.mutex);
+    }
     strcpy(carpark.data->level[level].LPR.plate, plate);
     pthread_cond_signal(&carpark.data->level[level].LPR.condition);
     pthread_mutex_unlock(&carpark.data->level[level].LPR.mutex);
     
     // Park at the carpark for randtime or until alarm goes off
-    int park_time = (rand() % 9901) + 100;
+    // int park_time = (rand() % 9901) + 100;
     // int rand_alarm = rand() % 10;
     // if (!rand_alarm)
     // {
@@ -448,14 +455,27 @@ void *sim_car(void *arg)
     // printf("alarm is %d\n", carpark.data->level[0].temperature.alarm);
     
     // int park_time = 100;
-    int park_i = 0;
-    while (!carpark.data->level[0].temperature.alarm && park_i < park_time)
-    {
-        ms_pause(1);
-        park_i++;
-        // printf("park i is %d\n", park_i);
-    }    
+    // int park_i = 0;
+    // while (!carpark.data->level[0].temperature.alarm && (park_i < park_time))
+    // {
+    //     ms_pause(1);
+    //     park_i++;
+    //     // printf("park i is %d\n", park_i);
+    // }    
     // ms_pause(park_time);
+
+
+    // Trigger level LPR
+    pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
+    while(string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
+    {
+        printf("Car is waiting to leave\n");
+        pthread_cond_wait(&carpark.data->level[level].LPR.condition, &carpark.data->level[level].LPR.mutex);
+    }
+    strcpy(carpark.data->level[level].LPR.plate, plate);
+    pthread_cond_signal(&carpark.data->level[level].LPR.condition);
+    pthread_mutex_unlock(&carpark.data->level[level].LPR.mutex);
+
 
     // Add car to exit list
     pthread_mutex_lock(&exit_mutex[random_exit]);
@@ -472,28 +492,34 @@ void *sim_car(void *arg)
     
     // Wait at boomgate until it is fully closed
     printf("%s arrived at boomgate %d\n", plate, random_exit + 1);
-    pthread_mutex_lock(&localGateMutex);
-    while(carpark.data->exit[random_exit].gate.status != CLOSED)
-    {
-        printf("%s waiting on gate to close. gate is %c\n", plate, carpark.data->exit[random_exit].gate.status);
-        pthread_cond_wait(&localGate, &localGateMutex);
-    }
-    pthread_mutex_unlock(&localGateMutex);
+    // pthread_mutex_lock(&carpark.data->exit[random_exit].gate.mutex);
+    // while(carpark.data->exit[random_exit].gate.status != CLOSED)
+    // {
+    //     printf("%s waiting on gate to close. gate is %c\n", plate, carpark.data->exit[random_exit].gate.status);
+    //     pthread_cond_wait(&carpark.data->exit[random_exit].gate.condition, &carpark.data->exit[random_exit].gate.mutex);
+    // }
+    // pthread_mutex_unlock(&carpark.data->exit[random_exit].gate.mutex);
 
     // Give licence plate to lpr
     pthread_mutex_lock(&carpark.data->exit[random_exit].LPR.mutex);
+    while(!string_equal(carpark.data->exit[random_exit].LPR.plate, EMPTY_LPR))
+    {
+        pthread_cond_wait(&carpark.data->exit[random_exit].LPR.condition, &carpark.data->exit[random_exit].LPR.mutex);
+    }
     strcpy(carpark.data->exit[random_exit].LPR.plate, plate);
-    pthread_mutex_unlock(&carpark.data->exit[random_exit].LPR.mutex);
     pthread_cond_signal(&carpark.data->exit[random_exit].LPR.condition);
+    pthread_mutex_unlock(&carpark.data->exit[random_exit].LPR.mutex);
+    
 
     // Wait for boomgate to open
-    pthread_mutex_lock(&localGateMutex);
+    pthread_mutex_lock(&carpark.data->exit[random_exit].gate.mutex);
     while (carpark.data->exit[random_exit].gate.status != OPEN)
     {
         printf("%s is waiting for gate to open. It is %c\n", plate, carpark.data->exit[random_exit].gate.status);
-        pthread_cond_wait(&localGate, &localGateMutex);
+        pthread_cond_wait(&carpark.data->exit[random_exit].gate.condition, &carpark.data->exit[random_exit].gate.mutex);
     }
-    pthread_mutex_unlock(&localGateMutex);
+    pthread_cond_signal(&carpark.data->exit[random_exit].gate.condition);
+    pthread_mutex_unlock(&carpark.data->exit[random_exit].gate.mutex);
     
     // Remove car from line and signal next car
     printf("%s exited car park\n", plate);

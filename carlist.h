@@ -194,3 +194,8 @@ void add_car(htab_t *h, car_t new_car)
     car->entry_time = new_car.entry_time;
     car->in_carpark = true;
 }
+
+bool string_equal(char *a, char *b)
+{
+    return strcmp(a, b) == 0;
+}

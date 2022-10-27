@@ -98,12 +98,12 @@ int main(void){
         pthread_create(&exit_gates[i], NULL, open_gate, &exit_alarm);
     }
     printf("raise exit\n");
-
+    
     // Wait for manager to turn off alarms once all cars have exited;
-    while(carpark.data->level->temperature.alarm == 1)
+    while(carpark.data->level[0].temperature.alarm == 1)
     {
         printf("waiting\n");
-        sleep(1);
+        sleep(5);
     }
 
     // Allow threads to terminate

@@ -22,6 +22,12 @@ pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hash_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t billing_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t space_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t revenue_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t hash_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t billing_cond = PTHREAD_COND_INITIALIZER;
+
+
 
 volatile int freespaces[LEVELS];
 volatile float total_revenue = 0.00;
@@ -134,15 +140,13 @@ void *monitor_gate(void *arg)
         while(gate->status != OPEN)
             pthread_cond_wait(&gate->condition, &gate->mutex);
 
-        if (gate->status == OPEN) // Not sure if this line is necessary?
-        {    
         // delay for 20ms * TIMEX
         ms_pause(20);
         // Set the gate status to Lowering
         gate->status = LOWERING;
-        }
+    
         // signal condition variable and unlock mutex
-        pthread_cond_signal(&gate->condition);
+        pthread_cond_broadcast(&gate->condition);
         pthread_mutex_unlock(&gate->mutex);
     }
 
@@ -185,7 +189,7 @@ void *monitor_level(void *arg)
         }
 
         // reset LPR value and unlock mutex
-        ms_pause(50);
+        ms_pause(10);
         strcpy(lpr->level_LPR->plate, EMPTY_LPR);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
     }
@@ -222,7 +226,7 @@ void *monitor_exit(void *arg)
         // Set gate status to RAISING
         exit->gate.status = RAISING;
         // Signal condition signal and unlock mutex
-        pthread_cond_signal(&exit->gate.condition);
+        pthread_cond_broadcast(&exit->gate.condition);
         pthread_mutex_unlock(&exit->gate.mutex);
 
         // unlock lpr mutex and reset LPR
@@ -248,8 +252,8 @@ void *monitor_entry(void *arg)
         char space;
 
         // Acquire hash and space locks out here so that car can be generated without losing its spot
-        pthread_mutex_lock(&hash_lock);
-        pthread_mutex_lock(&space_lock);
+        // pthread_mutex_lock(&hash_lock);
+        // pthread_mutex_lock(&space_lock);
 
         if ( htab_search_plate(&verified_cars, plate) )
         {
@@ -270,15 +274,18 @@ void *monitor_entry(void *arg)
             generate_car(plate, level);
 
             pthread_mutex_lock(&entry->gate.mutex);
-
+            while( entry->gate.status != CLOSED)
+            {
+                pthread_cond_wait(&entry->gate.condition, &entry->gate.mutex);
+            }
             entry->gate.status = RAISING;
 
-            pthread_cond_signal(&entry->gate.condition);
+            pthread_cond_broadcast(&entry->gate.condition);
             pthread_mutex_unlock(&entry->gate.mutex);
         }
 
-        pthread_mutex_unlock(&hash_lock);
-        pthread_mutex_unlock(&space_lock);
+        // pthread_mutex_unlock(&hash_lock);
+        // pthread_mutex_unlock(&space_lock);
 
         // Display entry status on sign
         pthread_mutex_lock(&entry->sign.mutex);
@@ -458,7 +465,3 @@ long long duration_ms(struct timeval start) {
     return (((long long)end.tv_sec)*1000)+(end.tv_usec/1000) - (((long long)start.tv_sec)*1000)+(start.tv_usec/1000);
 }
 
-bool string_equal(char *a, char *b)
-{
-    return strcmp(a, b) == 0;
-}

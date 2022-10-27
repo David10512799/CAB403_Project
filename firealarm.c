@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <stdio.h>
+
 #define MEDIAN_WINDOW 5
 #define TEMPCHANGE_WINDOW 30
 
@@ -61,12 +63,15 @@ int main(void){
     {
         pthread_cond_wait(&alarm_condvar, &alarm_mutex);
     }
+    printf("passed alarm wait\n");
 
     // Set all alarms in shared memory to active
     for( int i = 0; i < LEVELS; i++){
         carpark.data->level[i].temperature.alarm = 1;
+        printf("level %d alarm is %d\n", i + 1, carpark.data->level[i].temperature.alarm);
     }
     pthread_mutex_unlock(&alarm_mutex);
+    printf("alarms set to active\n");
 
     // Raise all entrance gates and display evacuate on signs
     pthread_t entry_gates[ENTRIES];
@@ -83,16 +88,21 @@ int main(void){
         sign_alarm.status = &alarm;
         pthread_create(&signs[i], NULL, display_evac, &sign_alarm);
     }
-
+    printf("raise entry\n");
     // Raise all exit gates
     pthread_t exit_gates[EXITS];
     for( int i = 0; i < EXITS; i++){
-        pthread_create(&exit_gates[i], NULL, open_gate, &carpark.data->exit[i].gate);
+        alarm_t exit_alarm;
+        exit_alarm.gate = &carpark.data->exit[i].gate;
+        exit_alarm.status = &alarm;
+        pthread_create(&exit_gates[i], NULL, open_gate, &exit_alarm);
     }
+    printf("raise exit\n");
 
     // Wait for manager to turn off alarms once all cars have exited;
     while(carpark.data->level->temperature.alarm == 1)
     {
+        printf("waiting\n");
         sleep(1);
     }
 
@@ -105,6 +115,7 @@ int main(void){
     for( int i = 0; i < EXITS; i++){
         pthread_join(exit_gates[i], NULL);
     }
+    printf("after joining threads\n");
 
     // Unmap memory before the program closes
     munmap(&carpark.data, sizeof(carpark_t));
@@ -178,6 +189,7 @@ static void detect_fire(int16_t *smooth_temp, int *smooth_count, alarm_t *alarm)
     // RATE-OF-RISE FIRE DETECTION
     if ((smooth_temp[*smooth_count - 1] - smooth_temp[0]) >= 8)
     {
+        printf("rate of rise alarm triggered\n");
         // Activate alarm
         pthread_mutex_lock(alarm->mutex);
         *alarm->status = 1;
@@ -195,6 +207,7 @@ static void detect_fire(int16_t *smooth_temp, int *smooth_count, alarm_t *alarm)
     }
     if ( high_count >= (*smooth_count * 0.9) )
     {
+        printf("fixed temperature alarm triggered\n");
         pthread_mutex_lock(alarm->mutex);
         *alarm->status = 1;
         pthread_cond_signal(alarm->condition);
@@ -214,8 +227,11 @@ static void *tempmonitor(void *arg)
 
     int raw_count = 0;
     int smooth_count = 0;
+    printf("alarm status is %d?\n", *alarm->status);
 
-	while(!alarm->status) {
+
+	while(!*alarm->status) {
+        printf("temp is %d\n", temperature->sensor);
 		
         // RAW TEMPERATURE READINGS
         read_temps(temperature, raw_temp, &raw_count);
@@ -232,6 +248,7 @@ static void *tempmonitor(void *arg)
         {
             detect_fire(smooth_temp, &smooth_count, alarm);
         }
+        printf("alarm status is %d\n", *alarm->status);
 
 		usleep(2000);
 	}
@@ -307,6 +324,7 @@ static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *a
 
     if ((bad_value_count > 2) || (consecutive_count == TEMPCHANGE_WINDOW))
     {
+        printf("hardware failure alarm triggered\n");
         pthread_mutex_lock(alarm->mutex);
         *alarm->status = 1;
         pthread_cond_signal(alarm->condition);

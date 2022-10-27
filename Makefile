@@ -18,7 +18,7 @@ buildall: ./build/manager ./build/simulator ./build/firealarm
 	
 
 run:
-	./build/simulatorm
+	./build/simulator
 	./build/manager
 	./build/firealarm
 

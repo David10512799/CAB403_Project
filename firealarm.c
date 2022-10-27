@@ -28,7 +28,7 @@ static void *display_evac(void *arg);
 static void read_temps(temperature_t *temperature, int16_t *temp, int *count);
 static void generate_smooth(int16_t *raw_temp, int16_t *smooth_temp, int16_t *median_list, int *raw_count, int *smooth_count);
 static void detect_fire(int16_t *smooth_temp, int *smooth_count, alarm_t *alarm);
-static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *alarm);
+static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *alarm, int *consecutive_count);
 
 int main(void){
 
@@ -227,7 +227,10 @@ static void *tempmonitor(void *arg)
 
     int raw_count = 0;
     int smooth_count = 0;
+    int consecutive_count = 0;
+
     printf("alarm status is %d?\n", *alarm->status);
+
 
 
 	while(!*alarm->status) {
@@ -236,7 +239,7 @@ static void *tempmonitor(void *arg)
         // RAW TEMPERATURE READINGS
         read_temps(temperature, raw_temp, &raw_count);
 
-        detect_hardware_failure(raw_temp, raw_count, alarm);
+        detect_hardware_failure(raw_temp, raw_count, alarm, &consecutive_count);
 
         // GENERATE SMOOTH TEMPERATURES
         if ( raw_count >= MEDIAN_WINDOW )
@@ -292,10 +295,10 @@ static void *display_evac(void *arg)
     return NULL;
 }
 
-static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *alarm)
+static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *alarm, int *consecutive_count)
 {
     int bad_value_count = 0;
-    int consecutive_count = 0;
+    
 
     for( int i = 0; i < raw_count; i++){
         if (raw_temp[i] > 100)
@@ -313,16 +316,16 @@ static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *a
         for( int i = 1; i < raw_count; i++){
             if(raw_temp[i] == raw_temp[i - 1])
             {
-                consecutive_count++;
+                *consecutive_count++;
             }
             else
             {
-                consecutive_count = 0;
+                *consecutive_count = 0;
             }
         }
     }
 
-    if ((bad_value_count > 2) || (consecutive_count == TEMPCHANGE_WINDOW))
+    if ((bad_value_count > 2) || (*consecutive_count == (3 * TEMPCHANGE_WINDOW - 1)))
     {
         printf("hardware failure alarm triggered\n");
         pthread_mutex_lock(alarm->mutex);

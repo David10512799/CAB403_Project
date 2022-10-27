@@ -182,14 +182,15 @@ void *monitor_level(void *arg)
         // if car is not supposed to be, and there is room, values must be changed
         if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
         {   
-
             // Decrement number of free spaces on level
+            pthread_mutex_lock(&space_lock);
             freespaces[index]--;
             // Correct for indexing
             int current_level = car->current_level - 1; 
             // Increment number of free spaces on level
             freespaces[current_level]++;
             // Edit current level to new value
+            pthread_mutex_unlock(&space_lock);
             car->current_level = level;
         }
 
@@ -256,13 +257,14 @@ void *monitor_entry(void *arg)
         char *plate = entry->LPR.plate;
         char space;
 
-        // Acquire hash and space locks out here so that car can be generated without losing its spot
+
         // pthread_mutex_lock(&hash_lock);
-        // pthread_mutex_lock(&space_lock);
 
         if ( htab_search_plate(&verified_cars, plate) )
         {
+            pthread_mutex_lock(&space_lock);
             space = find_space();
+            pthread_mutex_unlock(&space_lock);
         }
         else
         {
@@ -276,12 +278,12 @@ void *monitor_entry(void *arg)
 
         pthread_cond_signal(&entry->sign.condition);
         pthread_mutex_unlock(&entry->sign.mutex);
+
+
         // Set gate to raising if level = 1 - 5
         int level = (int)space - 48;
         if ((0 < level) && (level < 6))
         {
-            freespaces[level - 1]--;
-
             generate_car(plate, level);
 
             pthread_mutex_lock(&entry->gate.mutex);
@@ -296,7 +298,7 @@ void *monitor_entry(void *arg)
         }
 
         // pthread_mutex_unlock(&hash_lock);
-        // pthread_mutex_unlock(&space_lock);
+        pthread_mutex_unlock(&space_lock);
 
 
         // Reset entry status on sign
@@ -316,25 +318,21 @@ void *monitor_entry(void *arg)
 char find_space()
 {
     char retVal = FULL;
-    int level = 1;
-    int highest = freespaces[0];
-    for( int i = 1; i < LEVELS; i++){
-        if(freespaces[i] > highest)
+    int level = -1;
+
+    for( int i = 0; i < LEVELS; i++){
+        if(freespaces[i] != 0)
         {
-            level = i + 1;
-            highest = freespaces[i];
+            level = i;
+            break;
         }
-        // printf("freespaces %d\n", freespaces[i-1]);
     }
-    // printf("freespaces %d\n", freespaces[4]);
-    // printf("level %d\n", level);
 
-    if (level != 0)
+    if (level != -1)
     {
-        retVal = level + '0';
+        retVal = level + 1 + '0';
+        freespaces[level]--;
     }
-    // printf("space %c\n", retVal);
-
 
     return retVal;
 }

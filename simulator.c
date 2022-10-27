@@ -222,8 +222,8 @@ void *monitor_gate(void *arg)
             pthread_cond_wait(&gate->condition, &gate->mutex);
         }
         // delay for 10ms * TIMEX
+        printf("gate status is %c\n", gate->status);
         ms_pause(10);
-        printf("*************************************************");
         
         char status = gate->status;
 
@@ -235,9 +235,10 @@ void *monitor_gate(void *arg)
         {
             gate->status = OPEN;
         }
+        printf("gate status is %c\n", gate->status);
 
         // signal condition variable and unlock mutex
-        pthread_cond_signal(&gate->condition); // Signal manager it set to open or closed
+        pthread_cond_broadcast(&gate->condition); // Signal manager it set to open or closed
         // pthread_cond_broadcast(&localGate); // Signal car to check boomgate status
         pthread_mutex_unlock(&gate->mutex);
     }
@@ -265,6 +266,7 @@ int valid = 1;
 pthread_mutex_t valid_lock = PTHREAD_MUTEX_INITIALIZER;
 void *sim_car(void *arg)
 {  
+    pthread_setschedprio(pthread_self(), -20);
     char **plate_registry = (char**)arg;
     char plate[PLATE_LENGTH];
     char *key;
@@ -277,7 +279,7 @@ void *sim_car(void *arg)
     {
         do {                
             int plate_number;
-            plate_number = (rand() % (plate_count -1));
+            plate_number = (rand() % (plate_count));
             key = plate_registry[plate_number]; // random number between 0 and plate_count
             car = htab_find(&verified_cars, key);
             // lock all entry list mutexes
@@ -320,7 +322,7 @@ void *sim_car(void *arg)
             {
                 pthread_mutex_unlock(&entry_mutex[i]);
             } 
-            printf("invalid dupe\n");
+            // printf("invalid dupe\n");
         } while ( car != NULL || in_line != NULL);
         pthread_mutex_lock(&valid_lock);
         valid = 1;
@@ -434,18 +436,20 @@ void *sim_car(void *arg)
     // Travel to level
     ms_pause(10); // could be after level lpr
 
+    printf("about to trigger level lpr once\n");
     // Trigger level LPR
     pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
-    while(string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
+    while(!string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
     {
         pthread_cond_wait(&carpark.data->level[level].LPR.condition, &carpark.data->level[level].LPR.mutex);
     }
     strcpy(carpark.data->level[level].LPR.plate, plate);
     pthread_cond_signal(&carpark.data->level[level].LPR.condition);
     pthread_mutex_unlock(&carpark.data->level[level].LPR.mutex);
+    printf("passed level lpr once\n");
     
     // Park at the carpark for randtime or until alarm goes off
-    // int park_time = (rand() % 9901) + 100;
+    int park_time = (rand() % 9901) + 100;
     // int rand_alarm = rand() % 10;
     // if (!rand_alarm)
     // {
@@ -455,19 +459,19 @@ void *sim_car(void *arg)
     // printf("alarm is %d\n", carpark.data->level[0].temperature.alarm);
     
     // int park_time = 100;
-    // int park_i = 0;
-    // while (!carpark.data->level[0].temperature.alarm && (park_i < park_time))
-    // {
-    //     ms_pause(1);
-    //     park_i++;
-    //     // printf("park i is %d\n", park_i);
-    // }    
+    int park_i = 0;
+    while (!carpark.data->level[0].temperature.alarm && (park_i < park_time))
+    {
+        ms_pause(1);
+        park_i++;
+        // printf("park i is %d\n", park_i);
+    }    
     // ms_pause(park_time);
 
 
     // Trigger level LPR
     pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
-    while(string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
+    while(!string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
     {
         printf("Car is waiting to leave\n");
         pthread_cond_wait(&carpark.data->level[level].LPR.condition, &carpark.data->level[level].LPR.mutex);

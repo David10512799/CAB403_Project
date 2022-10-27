@@ -131,6 +131,9 @@ int main(void) {
 
 void *monitor_gate(void *arg)
 {
+    pthread_setschedprio(pthread_self(), 19);
+    
+
     gate_t *gate = (gate_t *)arg;
 
     for(;;)
@@ -141,7 +144,9 @@ void *monitor_gate(void *arg)
             pthread_cond_wait(&gate->condition, &gate->mutex);
 
         // delay for 20ms * TIMEX
+        pthread_mutex_unlock(&gate->mutex);
         ms_pause(20);
+        pthread_mutex_lock(&gate->mutex);
         // Set the gate status to Lowering
         gate->status = LOWERING;
     
@@ -264,7 +269,13 @@ void *monitor_entry(void *arg)
             space = DENIED;
         }
 
+        // Display entry status on sign
+        pthread_mutex_lock(&entry->sign.mutex);
 
+        entry->sign.display = space;
+
+        pthread_cond_signal(&entry->sign.condition);
+        pthread_mutex_unlock(&entry->sign.mutex);
         // Set gate to raising if level = 1 - 5
         int level = (int)space - 48;
         if ((0 < level) && (level < 6))
@@ -287,13 +298,6 @@ void *monitor_entry(void *arg)
         // pthread_mutex_unlock(&hash_lock);
         // pthread_mutex_unlock(&space_lock);
 
-        // Display entry status on sign
-        pthread_mutex_lock(&entry->sign.mutex);
-
-        entry->sign.display = space;
-
-        pthread_cond_signal(&entry->sign.condition);
-        pthread_mutex_unlock(&entry->sign.mutex);
 
         // Reset entry status on sign
         ms_pause(10);
@@ -428,7 +432,7 @@ void *generate_GUI( void *arg )
         }
         fflush(stdout);
         printf("\n");
-        ms_pause(7);
+        ms_pause(50);
         printf("\033[2J"); // Clear screen
     }
     return NULL;

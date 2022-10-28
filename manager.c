@@ -126,25 +126,25 @@ int main(void) {
     
     // Wait for alarm to go off
     pthread_mutex_lock(&alarm_lock);
-    while (!alarm_on)
+    while (!*alarm_on)
     {
         pthread_cond_wait(&alarm_cond, &alarm_lock);
     }
     pthread_mutex_unlock(&alarm_lock);
 
-    bool empty = false;
+    int empty = 0;
 
     // Wait for cars to leave the carpark
-    while(!empty)
+    while(empty < LEVELS)
     {
+        empty = 0;
         for( int i = 0; i < LEVELS; i++){
+            printf("gate %d is %c\n", i + 1, carpark.data->exit->gate.status);
             if (freespaces[i] == CARS_PER_LEVEL)
-                empty = true;
-            else
-                empty = false;
+                empty++;
         }
     }
-
+    printf("levels are apparently empty\n");
     // Turn off the alarms
     for( int i = 0; i < LEVELS; i++){
         carpark.data->level[i].temperature.alarm = 0;
@@ -158,6 +158,8 @@ int main(void) {
     carpark.data = NULL;
     carpark.fd = -1;
 
+    printf("return\n");
+
     return EXIT_SUCCESS;
 }
 
@@ -169,7 +171,7 @@ void *monitor_gate(void *arg)
 
     gate_t *gate = (gate_t *)arg;
 
-    while(!alarm_on)
+    while(!*alarm_on)
     {
         //lock gate mutex and wait for signal
         pthread_mutex_lock(&gate->mutex);
@@ -178,15 +180,19 @@ void *monitor_gate(void *arg)
 
         // delay for 20ms * TIMEX
         pthread_mutex_unlock(&gate->mutex);
-        ms_pause(20);
-        pthread_mutex_lock(&gate->mutex);
-        // Set the gate status to Lowering
-        gate->status = LOWERING;
-    
-        // signal condition variable and unlock mutex
-        pthread_cond_broadcast(&gate->condition);
-        pthread_mutex_unlock(&gate->mutex);
+        if (!*alarm_on)
+        {
+            ms_pause(20);
+            pthread_mutex_lock(&gate->mutex);
+            // Set the gate status to Lowering
+            gate->status = LOWERING;
+        
+            // signal condition variable and unlock mutex
+            pthread_cond_broadcast(&gate->condition);
+            pthread_mutex_unlock(&gate->mutex);
+        }               
     }
+    pthread_cond_signal(&alarm_cond);
 
     return NULL;
 }
@@ -232,6 +238,7 @@ void *monitor_level(void *arg)
         ms_pause(10);
         strcpy(lpr->level_LPR->plate, EMPTY_LPR);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
+        pthread_cond_broadcast(&lpr->level_LPR->condition);
     }
     return NULL;
 }
@@ -263,12 +270,16 @@ void *monitor_exit(void *arg)
         remove_car(&verified_cars, plate);
 
         // Lock gate mutex
-        pthread_mutex_lock(&exit->gate.mutex);
-        // Set gate status to RAISING
-        exit->gate.status = RAISING;
-        // Signal condition signal and unlock mutex
-        pthread_cond_broadcast(&exit->gate.condition);
-        pthread_mutex_unlock(&exit->gate.mutex);
+        if (!*alarm_on)
+        {            
+            pthread_mutex_lock(&exit->gate.mutex);
+            // Set gate status to RAISING
+            exit->gate.status = RAISING;
+            // Signal condition signal and unlock mutex
+            pthread_cond_broadcast(&exit->gate.condition);
+            pthread_mutex_unlock(&exit->gate.mutex);
+        }
+        
 
         // unlock lpr mutex and reset LPR
         ms_pause(10);
@@ -282,7 +293,7 @@ void *monitor_entry(void *arg)
 {
     entrance_t *entry = (entrance_t *)arg;
 
-    while (!alarm_on)
+    while (!*alarm_on)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&entry->LPR.mutex);

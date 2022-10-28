@@ -77,16 +77,17 @@ int main(void){
     pthread_t entry_gates[ENTRIES];
     pthread_t signs[ENTRIES];
 
-    for( int i = 0; i < ENTRIES; i++){
-        alarm_t gate_alarm;
-        gate_alarm.gate = &carpark.data->entrance[i].gate;
-        gate_alarm.status = &alarm;
-        pthread_create(&entry_gates[i], NULL, open_gate, &gate_alarm);
+    alarm_t gate_alarms[ENTRIES];
+    alarm_t sign_alarms[ENTRIES];
 
-        alarm_t sign_alarm;
-        sign_alarm.sign = &carpark.data->entrance[i].sign;
-        sign_alarm.status = &alarm;
-        pthread_create(&signs[i], NULL, display_evac, &sign_alarm);
+    for( int i = 0; i < ENTRIES; i++){
+        gate_alarms[i].gate = &carpark.data->entrance[i].gate;
+        gate_alarms[i].status = &alarm;
+        pthread_create(&entry_gates[i], NULL, open_gate, &gate_alarms[i]);
+
+        sign_alarms[i].sign = &carpark.data->entrance[i].sign;
+        sign_alarms[i].status = &alarm;
+        pthread_create(&signs[i], NULL, display_evac, &sign_alarms[i]);
     }
     printf("raise entry\n");
     // Raise all exit gates

@@ -92,11 +92,12 @@ int main(void){
     printf("raise entry\n");
     // Raise all exit gates
     pthread_t exit_gates[EXITS];
+    alarm_t exit_alarms[EXITS];
+
     for( int i = 0; i < EXITS; i++){
-        alarm_t exit_alarm;
-        exit_alarm.gate = &carpark.data->exit[i].gate;
-        exit_alarm.status = &alarm;
-        pthread_create(&exit_gates[i], NULL, open_gate, &exit_alarm);
+        exit_alarms[i].gate = &carpark.data->exit[i].gate;
+        exit_alarms[i].status = &alarm;
+        pthread_create(&exit_gates[i], NULL, open_gate, &exit_alarms[i]);
     }
     printf("raise exit\n");
     

@@ -182,6 +182,10 @@ void *temp_sim(void *arg){
                 {
                     temp++;
                 } 
+                else
+                {
+                    temp--;
+                }
             }
             else
             {
@@ -189,6 +193,10 @@ void *temp_sim(void *arg){
                 {
                     temp--;                
                 } 
+                else
+                {
+                    temp++;
+                }
             }
             break;
         case 1: // Trigger alarm by rate of raise fire
@@ -206,6 +214,10 @@ void *temp_sim(void *arg){
                     {
                         temp++;
                     } 
+                    else
+                    {
+                        temp--;
+                    }
                 }
                 else
                 {
@@ -213,6 +225,10 @@ void *temp_sim(void *arg){
                     {
                         temp--;                
                     } 
+                    else
+                    {
+                        temp++;
+                    }
                 }
             }         
             break;
@@ -230,6 +246,10 @@ void *temp_sim(void *arg){
                     {
                         temp++;
                     } 
+                    else
+                    {
+                        temp--;
+                    }
                 }
                 else
                 {
@@ -237,6 +257,10 @@ void *temp_sim(void *arg){
                     {
                         temp--;                
                     } 
+                    else
+                    {
+                        temp++;
+                    }
                 }   
             }
             break;
@@ -253,6 +277,10 @@ void *temp_sim(void *arg){
                     {
                         temp++;
                     } 
+                    else
+                    {
+                        temp--;
+                    }
                 }
                 else
                 {
@@ -260,6 +288,10 @@ void *temp_sim(void *arg){
                     {
                         temp--;                
                     } 
+                    else
+                    {
+                        temp++;
+                    }
                 } 
             }
             // printf("case 3\n");
@@ -340,6 +372,7 @@ void *sim_car(void *arg)
     char rand_plate[PLATE_LENGTH];
     car_t *car;
     node_t *in_line;
+    int gen_pause = 0;
     srand(time(NULL));
 
     if (valid)
@@ -360,6 +393,13 @@ void *sim_car(void *arg)
                 pthread_mutex_unlock(&entry_mutex[i]);
             }          
             // printf("valid dupe\n");
+            gen_pause++;
+            if (gen_pause > 100)
+            {
+                ms_pause(10);
+                gen_pause -= 10;
+            }
+            
         } while(car->in_carpark || in_line != NULL);
         strcpy(plate, key);
         pthread_mutex_lock(&valid_lock);
@@ -413,12 +453,8 @@ void *sim_car(void *arg)
     // Wait in line until boomgate is available    
     pthread_mutex_lock(&entry_mutex[random_entry]);
     while(node_find_name(entry_list[random_entry], plate)->next != NULL){
-        // printf("%s next is %s\n", plate, node_find_name(entry_list[random_entry], plate)->next->plate);
         pthread_cond_wait(&entry_cond[random_entry], &entry_mutex[random_entry]);
-        // printf("%s signaled\n", plate);
-        // if (node_find_name(entry_list[random_entry], plate)->next != NULL){
-        //     printf("%s next is %s\n", plate, node_find_name(entry_list[random_entry], plate)->next->plate);
-        // }
+
     } 
     // printf("%s passed signal loop\n", plate);
     pthread_mutex_unlock(&entry_mutex[random_entry]);
@@ -437,15 +473,12 @@ void *sim_car(void *arg)
     // pthread_mutex_unlock(&carpark.data->entrance[random_entry].gate.mutex);
     
     // Give licence plate to LPR and signal manager to check it
-    // printf("%s entry is %d\n", plate, random_entry + 1);
     pthread_mutex_lock(&carpark.data->entrance[random_entry].LPR.mutex);
     strcpy(carpark.data->entrance[random_entry].LPR.plate, plate);
     pthread_mutex_unlock(&carpark.data->entrance[random_entry].LPR.mutex);
     pthread_cond_signal(&carpark.data->entrance[random_entry].LPR.condition);
 
     // Wait for the display to update and read its value
-    // printf("checking sign\n");
-    // printf("the sign says %c\n", carpark.data->entrance[random_entry].sign.display);
     pthread_mutex_lock(&carpark.data->entrance[random_entry].sign.mutex);
     while (carpark.data->entrance[random_entry].sign.display == EMPTY_SIGN)
     {
@@ -472,14 +505,9 @@ void *sim_car(void *arg)
 
         return NULL;
     }
-    // printf("level value is %d\n", level);
     level = level - 1;
-    // printf("index is %d\n", level);
     // Wait for boomgate to open
-    // printf("%s waiting for boomgate to open\n", plate);
-
     pthread_mutex_lock(&carpark.data->entrance[random_entry].gate.mutex);
-    // printf("gate status is %c\n", carpark.data->entrance[random_entry].gate.status);
     while (carpark.data->entrance[random_entry].gate.status != OPEN)
     {
         printf("%s is waiting for gate to open. It is %c\n", plate, carpark.data->entrance[random_entry].gate.status);
@@ -487,14 +515,12 @@ void *sim_car(void *arg)
     }
     pthread_cond_signal(&carpark.data->entrance[random_entry].gate.condition);
     pthread_mutex_unlock(&carpark.data->entrance[random_entry].gate.mutex);
-    // printf("gate status is %c\n", carpark.data->entrance[random_entry].gate.status);
     
     // Remove car from line and signal next car
     printf("%s entered car park\n", plate);
     pthread_mutex_lock(&entry_mutex[random_entry]);
     entry_list[random_entry] = node_delete(entry_list[random_entry], plate);
     pthread_mutex_unlock(&entry_mutex[random_entry]);
-    // printf("sent signal\n");
     pthread_cond_broadcast(&entry_cond[random_entry]);
 
     car = htab_find(&verified_cars, plate);
@@ -517,30 +543,21 @@ void *sim_car(void *arg)
     
     // Park at the carpark for randtime or until alarm goes off
     int park_time = (rand() % 9901) + 100;
-    // int rand_alarm = rand() % 10;
-    // if (!rand_alarm)
-    // {
-    //     carpark.data->level[0].temperature.alarm = 1;
-    // }
-
-    // printf("alarm is %d\n", carpark.data->level[0].temperature.alarm);
-    
     // int park_time = 100;
+
+    
     int park_i = 0;
     while (!carpark.data->level[0].temperature.alarm && (park_i < park_time))
     {
-        ms_pause(1);
-        park_i++;
-        // printf("park i is %d\n", park_i);
+        ms_pause(2);
+        park_i += 2;
     }    
-    // ms_pause(park_time);
 
 
     // Trigger level LPR
     pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
     while(!string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
     {
-        printf("Car is waiting to leave\n");
         pthread_cond_wait(&carpark.data->level[level].LPR.condition, &carpark.data->level[level].LPR.mutex);
     }
     strcpy(carpark.data->level[level].LPR.plate, plate);
@@ -573,10 +590,6 @@ void *sim_car(void *arg)
 
     // Give licence plate to lpr
     pthread_mutex_lock(&carpark.data->exit[random_exit].LPR.mutex);
-    while(!string_equal(carpark.data->exit[random_exit].LPR.plate, EMPTY_LPR))
-    {
-        pthread_cond_wait(&carpark.data->exit[random_exit].LPR.condition, &carpark.data->exit[random_exit].LPR.mutex);
-    }
     strcpy(carpark.data->exit[random_exit].LPR.plate, plate);
     pthread_cond_signal(&carpark.data->exit[random_exit].LPR.condition);
     pthread_mutex_unlock(&carpark.data->exit[random_exit].LPR.mutex);

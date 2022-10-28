@@ -261,15 +261,19 @@ static void *open_gate(void *arg)
     alarm_t *alarm = (alarm_t *)arg;
 	gate_t *bg = alarm->gate;
 
-	pthread_mutex_lock(&bg->mutex);
 	while (*alarm->status == 1) {
-		if (bg->status == (char)CLOSED) {
-			bg->status = RAISING;
-			pthread_cond_broadcast(&bg->condition);
-		}
-		pthread_cond_wait(&bg->condition, &bg->mutex);
+	    pthread_mutex_lock(&bg->mutex);
+        while (bg->status != CLOSED)
+        {
+            printf("waiting to set to closed. it is %c\n", bg->status);
+            pthread_cond_wait(&bg->condition, &bg->mutex);
+        }
+        
+        bg->status = RAISING;
+        printf("set gate to raising\n");
+	    pthread_mutex_unlock(&bg->mutex);
+        pthread_cond_broadcast(&bg->condition);
 	}
-	pthread_mutex_unlock(&bg->mutex);
     return NULL;
 }
 

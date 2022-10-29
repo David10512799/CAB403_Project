@@ -68,6 +68,12 @@ int plate_count;
 
 int alarm_mode;
 
+int end_monitors = 0;
+
+int valid = 1;
+
+pthread_mutex_t valid_lock = PTHREAD_MUTEX_INITIALIZER;
+
 int main(int argc, char **argv){
 
     // Generate Shared Memory
@@ -154,21 +160,18 @@ int main(int argc, char **argv){
     //Cleanup protocol
 
     printf("alarm was triggered and car gen has stopped\n");
-    while(true)
-    {
-        printf("waiting\n");   
-        // for (int i = 0; i < EXITS; i++)
-        // {
-        //     printf("head pointer is %p\n", exit_list[i]);
-        // }
-        for (int i = 0; i < plate_count; i++)
-        {
-            car_t *temp = htab_find(&verified_cars, plate_registry[i]);
-            printf("%s in car park? %d\n", temp->plate, temp->in_carpark);
-        }
-        
-        sleep(10);
+    while(carpark.data->level[0].temperature.alarm == 1)
+    {       
+        ms_pause(10);
     }
+
+    end_monitors = 1;
+
+    munmap(&carpark.data, sizeof(carpark_t));
+    shm_unlink(SHARE_NAME);
+    carpark.data = NULL;
+    carpark.fd = -1;
+    htab_destroy(&verified_cars);
 
     return EXIT_SUCCESS;
 }
@@ -323,7 +326,7 @@ void *monitor_gate(void *arg)
 {
     gate_t *gate = (gate_t *)arg;
 
-    for(;;)
+    while(!end_monitors)
     {
         //lock gate mutex and wait for signal
         pthread_mutex_lock(&gate->mutex);
@@ -371,9 +374,8 @@ void start_car_simulation(char **plate_registry){
 
     }    
 }
+
 // create thread
-int valid = 1;
-pthread_mutex_t valid_lock = PTHREAD_MUTEX_INITIALIZER;
 void *sim_car(void *arg)
 {  
     pthread_setschedprio(pthread_self(), -20);

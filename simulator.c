@@ -156,6 +156,17 @@ int main(int argc, char **argv){
     printf("alarm was triggered and car gen has stopped\n");
     while(true)
     {
+        printf("waiting\n");   
+        // for (int i = 0; i < EXITS; i++)
+        // {
+        //     printf("head pointer is %p\n", exit_list[i]);
+        // }
+        for (int i = 0; i < plate_count; i++)
+        {
+            car_t *temp = htab_find(&verified_cars, plate_registry[i]);
+            printf("%s in car park? %d\n", temp->plate, temp->in_carpark);
+        }
+        
         sleep(10);
     }
 
@@ -589,6 +600,9 @@ void *sim_car(void *arg)
     // pthread_mutex_unlock(&carpark.data->exit[random_exit].gate.mutex);
 
     // Give licence plate to lpr
+
+    pthread_setschedprio(pthread_self(), 19);
+
     pthread_mutex_lock(&carpark.data->exit[random_exit].LPR.mutex);
     strcpy(carpark.data->exit[random_exit].LPR.plate, plate);
     pthread_cond_signal(&carpark.data->exit[random_exit].LPR.condition);

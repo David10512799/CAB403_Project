@@ -267,12 +267,10 @@ static void *open_gate(void *arg)
 	    pthread_mutex_lock(&bg->mutex);
         while (bg->status != CLOSED)
         {
-            printf("waiting to set to closed. it is %c\n", bg->status);
             pthread_cond_wait(&bg->condition, &bg->mutex);
         }
         
         bg->status = RAISING;
-        printf("set gate to raising\n");
 	    pthread_mutex_unlock(&bg->mutex);
         pthread_cond_broadcast(&bg->condition);
 	}
@@ -294,6 +292,7 @@ static void *display_evac(void *arg)
             pthread_cond_broadcast(&sign->condition);
             pthread_mutex_unlock(&sign->mutex);
 			usleep(20000);
+            i++;
         }
     }
     return NULL;

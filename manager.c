@@ -137,9 +137,9 @@ int main(void) {
     // Wait for cars to leave the carpark
     while(empty < LEVELS)
     {
+        ms_pause(10);
         empty = 0;
         for( int i = 0; i < LEVELS; i++){
-            printf("gate %d is %c\n", i + 1, carpark.data->exit->gate.status);
             if (freespaces[i] == CARS_PER_LEVEL)
                 empty++;
         }
@@ -249,12 +249,22 @@ void *monitor_exit(void *arg)
 
     while(!end_monitors)
     {
+
+        if (*alarm_on)
+        {
+            pthread_setschedprio(pthread_self(), -20);
+        }
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&exit->LPR.mutex);
         while (string_equal(exit->LPR.plate, EMPTY_LPR))
             pthread_cond_wait(&exit->LPR.condition, &exit->LPR.mutex);
 
         // Read plate
+
+        if (*alarm_on)
+        {
+            pthread_setschedprio(pthread_self(), -20);
+        }
         char *plate = exit->LPR.plate;
 
         // Bill car

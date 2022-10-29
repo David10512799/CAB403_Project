@@ -358,6 +358,15 @@ void *monitor_entry(void *arg)
         strcpy(entry->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&entry->LPR.mutex);
     }
+    while (!end_monitors)
+    {
+        pthread_mutex_lock(&entry->LPR.mutex);
+        while (string_equal(!entry->LPR.plate, EMPTY_LPR) && !end_monitors);
+            pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
+        strcpy(entry->LPR.plate, EMPTY_LPR);
+        pthread_mutex_unlock(&entry->LPR.mutex);
+    }
+
     return NULL;
 }
 

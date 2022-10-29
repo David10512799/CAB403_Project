@@ -4,6 +4,7 @@
 #include <stdbool.h> 
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #endif
 
 #ifndef ENTRIES
@@ -102,18 +103,22 @@ struct shared_carpark
 };
 
 
-bool monitor_alarms(level_t *level)
-{
-    while(level->temperature.alarm == 0)
-    {
-        usleep(500);
-    }
-    return true; 
-}
-
-#define TIMEX 10 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
+#define TIMEX 1 // Time multiplier for timings to slow down simulation - set to 1 for specified timing
 
 void ms_pause(int time)
 {
     usleep(TIMEX * time * 1000);
+}
+
+void write_string(LPR_t *lpr, char plate[6])
+{
+    for (int i = 0; i < 6; i++)
+    {
+        lpr->plate[i] = plate[i];
+    }
+}
+
+bool string_equal(char *a, char *b)
+{
+    return strcmp(a, b) == 0;
 }

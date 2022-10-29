@@ -601,13 +601,12 @@ void *sim_car(void *arg)
 
     // Give licence plate to lpr
 
-    pthread_setschedprio(pthread_self(), 19);
-
     pthread_mutex_lock(&carpark.data->exit[random_exit].LPR.mutex);
+    while(!string_equal(carpark.data->exit[random_exit].LPR.plate, EMPTY_LPR))
+        pthread_cond_wait(&carpark.data->exit[random_exit].LPR.condition, &carpark.data->exit[random_exit].LPR.mutex);
     strcpy(carpark.data->exit[random_exit].LPR.plate, plate);
-    pthread_cond_signal(&carpark.data->exit[random_exit].LPR.condition);
     pthread_mutex_unlock(&carpark.data->exit[random_exit].LPR.mutex);
-    
+    pthread_cond_broadcast(&carpark.data->exit[random_exit].LPR.condition);
 
     // Wait for boomgate to open
     pthread_mutex_lock(&carpark.data->exit[random_exit].gate.mutex);

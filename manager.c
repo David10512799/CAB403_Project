@@ -46,7 +46,7 @@ struct level_LPR_monitor
 //Function declarations
 void *generate_GUI(void *arg); 
 char *gate_status(char code); void open_gate(); void close_gate(); 
-void *generate_bill(void *arg);
+void generate_bill(char *plate);
 void generate_car(char *plate, int level);
 char find_space();
 long long duration_ms(struct timeval start);
@@ -137,7 +137,7 @@ int main(void) {
     // Wait for cars to leave the carpark
     while(empty < LEVELS)
     {
-        ms_pause(10);
+        sleep(1);
         empty = 0;
         for( int i = 0; i < LEVELS; i++){
             if (freespaces[i] == CARS_PER_LEVEL)
@@ -207,31 +207,35 @@ void *monitor_level(void *arg)
         pthread_mutex_lock(&lpr->level_LPR->mutex);
         while (string_equal(lpr->level_LPR->plate, EMPTY_LPR))
             pthread_cond_wait(&lpr->level_LPR->condition, &lpr->level_LPR->mutex);
+
+
+        char *plate = lpr->level_LPR->plate;
+        
+        // get pointer to car
+        car_t *car = htab_find(&verified_cars, plate);
+
+        int current_level = car->current_level;
+
         int index = lpr->id;
         // printf("Index %d %d\n", index, lpr.id);
         // Corrected from indexing value to actual level
         int level = index + 1; 
-        char *plate = lpr->level_LPR->plate;
-
-        // get pointer to car
-        car_t *car = htab_find(&verified_cars, plate);
 
         // check car is supposed to be on level and that there is room on that level and update values if not
         // if car is supposed to be, no need to change these values
         // if car is not supposed to be, and there is also no room, no need to change these values
         // if car is not supposed to be, and there is room, values must be changed
-        if ( (car->current_level != level) && ( freespaces[index] != 0 ) )
-        {   
-            // Decrement number of free spaces on level
+        if (current_level != level)
+        {
             pthread_mutex_lock(&space_lock);
-            freespaces[index]--;
-            // Correct for indexing
-            int current_level = car->current_level - 1; 
-            // Increment number of free spaces on level
-            freespaces[current_level]++;
-            // Edit current level to new value
+            if (freespaces[index] != 0)
+            {
+                freespaces[index] = freespaces[index] - 1;
+                freespaces[current_level - 1] = freespaces[current_level - 1] + 1;
+                car->current_level = level;
+            }
             pthread_mutex_unlock(&space_lock);
-            car->current_level = level;
+            pthread_cond_signal(&space_cond);
         }
 
         // reset LPR value and unlock mutex
@@ -249,11 +253,6 @@ void *monitor_exit(void *arg)
 
     while(!end_monitors)
     {
-
-        if (*alarm_on)
-        {
-            pthread_setschedprio(pthread_self(), -20);
-        }
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&exit->LPR.mutex);
         while (string_equal(exit->LPR.plate, EMPTY_LPR))
@@ -261,23 +260,10 @@ void *monitor_exit(void *arg)
 
         // Read plate
 
-        if (*alarm_on)
-        {
-            pthread_setschedprio(pthread_self(), -20);
-        }
         char *plate = exit->LPR.plate;
 
-        // Bill car
-        pthread_t bill;
-        pthread_create(&bill, NULL, generate_bill, plate);
-        pthread_join(bill, NULL);
+        generate_bill(plate);
 
-        // Remove car from carpark
-        car_t * car = htab_find(&verified_cars, plate);
-        int index = car->current_level - 1;
-        freespaces[index]++;
-
-        remove_car(&verified_cars, plate);
 
         // Lock gate mutex
         if (!*alarm_on)
@@ -288,13 +274,14 @@ void *monitor_exit(void *arg)
             // Signal condition signal and unlock mutex
             pthread_cond_broadcast(&exit->gate.condition);
             pthread_mutex_unlock(&exit->gate.mutex);
-        }
-        
 
+            ms_pause(10);
+        }
+    
         // unlock lpr mutex and reset LPR
-        ms_pause(10);
         strcpy(exit->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&exit->LPR.mutex);
+        pthread_cond_signal(&exit->LPR.condition);
     }
     return NULL;
 }
@@ -368,10 +355,13 @@ void *monitor_entry(void *arg)
         strcpy(entry->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&entry->LPR.mutex);
     }
+    // Take care of any cars that were generated before the fire alarms came on but hadn't reached the LPR yet
+    // The cars would have been turned away by the sign saying evacuate, but the LPR would have been triggered and is 
+    // displaying the plate on the gui
     while (!end_monitors)
     {
         pthread_mutex_lock(&entry->LPR.mutex);
-        while (string_equal(!entry->LPR.plate, EMPTY_LPR) && !end_monitors);
+        while (string_equal(entry->LPR.plate, EMPTY_LPR) && !end_monitors)
             pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
         strcpy(entry->LPR.plate, EMPTY_LPR);
         pthread_mutex_unlock(&entry->LPR.mutex);
@@ -405,26 +395,30 @@ char find_space()
 
 void generate_car(char *plate, int level)
 {
-    car_t new_car;
-    sprintf(new_car.plate, plate);
-    new_car.current_level = level;
-
     struct timeval entry_time;
     gettimeofday(&entry_time, NULL);
 
-    new_car.entry_time = entry_time;
-
-    add_car(&verified_cars, new_car);
+    car_t *car = htab_find(&verified_cars, plate);
+    car->current_level = level;
+    car->entry_time = entry_time;
+    car->in_carpark = true;
 }
 
-void *generate_bill(void *arg)
+void generate_bill(char *plate)
 {
-    char *plate = (char *)arg;
     // Calculate cost
     // No need to use hash lock here as just reading the value which won't be changed by anything else at this point
     car_t *car = htab_find(&verified_cars, plate);
     float duration = (float)duration_ms(car->entry_time);
     float cost = duration * 0.05;
+
+    // Update free spaces
+    int index = car->current_level - 1;
+    pthread_mutex_lock(&space_lock);
+    freespaces[index]++;
+    pthread_mutex_unlock(&space_lock);
+
+    car->in_carpark = false;
 
     // Increment total revenue
     pthread_mutex_lock(&revenue_lock);
@@ -437,8 +431,6 @@ void *generate_bill(void *arg)
     fprintf(bill, "%s $%.2f\n", plate, cost);
     fclose(bill);
     pthread_mutex_unlock(&billing_lock);
-
-    return NULL;
 }
 
 void *generate_GUI( void *arg )

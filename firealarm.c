@@ -213,7 +213,7 @@ static void *open_gate(void *arg)
 
 	while (*alarm->status == 1) {
 	    pthread_mutex_lock(&bg->mutex);
-        while (bg->status != CLOSED)
+        while (bg->status != (char)CLOSED)
         {
             pthread_cond_wait(&bg->condition, &bg->mutex);
         }

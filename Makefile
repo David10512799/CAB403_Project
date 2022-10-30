@@ -11,7 +11,7 @@ all: buildall
 ./build/simulator: simulator.c carlist.h carpark.h simulator.h
 	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS)	$(CPPFLAGS)
 
-./build/firealarm: firealarm.c carpark.h firelalarm.h
+./build/firealarm: firealarm.c carpark.h firealarm.h
 	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
 
 buildall: ./build/manager ./build/simulator ./build/firealarm

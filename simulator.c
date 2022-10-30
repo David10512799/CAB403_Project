@@ -132,10 +132,10 @@ int main(int argc, char **argv){
     return EXIT_SUCCESS;
 }
 int normal_temp(int current_temp){
-    int direction = rand() % 2;
-
-    if (direction)
+    int direction = rand() % 20;
+    switch (direction)
     {
+    case 0:
         if (current_temp < 30)
         {
             current_temp++;
@@ -144,9 +144,8 @@ int normal_temp(int current_temp){
         {
             current_temp--;
         }
-    }
-    else
-    {
+        break;
+    case 1:
         if (current_temp > 15)
         {
             current_temp--;                
@@ -155,9 +154,11 @@ int normal_temp(int current_temp){
         {
             current_temp++;
         }
+        break;
+    default:
+        break;
     }
-    return current_temp;    
-    
+    return current_temp;
 }
 void *temp_sim(void *arg){
     temperature_t *sensor = (temperature_t *)arg;
@@ -175,7 +176,7 @@ void *temp_sim(void *arg){
         case 1: // Trigger alarm by rate of raise fire
             if ((start_time - time(NULL)) < -20) // After 20 seconds since starting
             {
-                temp += 15;
+                temp += 8;
             }   
             else
             {
@@ -185,7 +186,11 @@ void *temp_sim(void *arg){
         case 2: // Trigger alarm by fixed temperature fire
             if ((start_time - time(NULL)) < -20)
             {
-                temp += 1;
+                int direction = rand() % 20;                
+                if (!direction)
+                {
+                    temp++;
+                }                
             }
             else
             {
@@ -203,12 +208,13 @@ void *temp_sim(void *arg){
             }
             break;
         default:
+            temp = normal_temp(temp);
             break;
         }
         
         sensor->sensor = temp;
-        // int rand_pause = (rand() % 5) + 1;
-        ms_pause(100);
+        int rand_pause = (rand() % 5) + 1;
+        ms_pause(rand_pause);
     }
     return NULL;
 }

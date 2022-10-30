@@ -238,7 +238,6 @@ void *monitor_gate(void *arg)
             pthread_cond_wait(&gate->condition, &gate->mutex);
         }
         // delay for 10ms * TIMEX
-        printf("gate status is %c\n", gate->status);
         ms_pause(10);
         
         char status = gate->status;
@@ -251,7 +250,6 @@ void *monitor_gate(void *arg)
         {
             gate->status = OPEN;
         }
-        printf("gate status is %c\n", gate->status);
 
         // signal condition variable and unlock mutex
         pthread_cond_broadcast(&gate->condition); // Signal manager it set to open or closed
@@ -356,7 +354,6 @@ void *sim_car(void *arg)
         pthread_mutex_unlock(&valid_lock);
         strcpy(plate, rand_plate);
     }
-    printf("plate is %s\n", plate);
    
     pthread_mutex_lock(&rand_lock);
     int random_entry = rand() % ENTRIES;
@@ -367,7 +364,7 @@ void *sim_car(void *arg)
     pthread_mutex_lock(&entry_mutex[random_entry]);
     // node_t *new_head = node_add(entry_list[random_entry], plate);
     entry_list[random_entry] = node_add(entry_list[random_entry], plate);;   
-    printf("%s joined the line for entry %d\n", entry_list[random_entry]->plate, random_entry + 1);
+    printf("%s joined the entry line %d\n", entry_list[random_entry]->plate, random_entry + 1);
     pthread_mutex_unlock(&entry_mutex[random_entry]); 
 
     // Wait in line until boomgate is available    
@@ -436,7 +433,6 @@ void *sim_car(void *arg)
     // Travel to level
     ms_pause(10); // could be after level lpr
 
-    printf("about to trigger level lpr once\n");
     // Trigger level LPR
     pthread_mutex_lock(&carpark.data->level[level].LPR.mutex);
     while(!string_equal(carpark.data->level[level].LPR.plate, EMPTY_LPR))
@@ -446,7 +442,6 @@ void *sim_car(void *arg)
     strcpy(carpark.data->level[level].LPR.plate, plate);
     pthread_cond_signal(&carpark.data->level[level].LPR.condition);
     pthread_mutex_unlock(&carpark.data->level[level].LPR.mutex);
-    printf("passed level lpr once\n");
     
     // Park at the carpark for randtime or until alarm goes off
     pthread_mutex_lock(&rand_lock);
@@ -475,7 +470,7 @@ void *sim_car(void *arg)
     // Add car to exit list
     pthread_mutex_lock(&exit_mutex[random_exit]);
     exit_list[random_exit] = node_add(exit_list[random_exit], plate);;   
-    printf("%s joined the line for exit %d\n", exit_list[random_exit]->plate, random_exit + 1);
+    printf("%s joined the exit line %d\n", exit_list[random_exit]->plate, random_exit + 1);
     pthread_mutex_unlock(&exit_mutex[random_exit]); 
 
     // Wait in line until next to boomgate

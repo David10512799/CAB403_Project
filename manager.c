@@ -174,7 +174,6 @@ void *monitor_level(void *arg)
         while (string_equal(lpr->level_LPR->plate, EMPTY_LPR))
             pthread_cond_wait(&lpr->level_LPR->condition, &lpr->level_LPR->mutex);
 
-
         char *plate = lpr->level_LPR->plate;
         
         // get pointer to car
@@ -224,7 +223,6 @@ void *monitor_exit(void *arg)
             pthread_cond_wait(&exit->LPR.condition, &exit->LPR.mutex);
 
         // Read plate
-
         char *plate = exit->LPR.plate;
 
         generate_bill(plate);
@@ -266,9 +264,6 @@ void *monitor_entry(void *arg)
         char *plate = entry->LPR.plate;
         char space;
 
-
-        // pthread_mutex_lock(&hash_lock);
-
         if ( htab_search_plate(&verified_cars, plate) )
         {
             pthread_mutex_lock(&space_lock);
@@ -305,10 +300,7 @@ void *monitor_entry(void *arg)
             pthread_cond_broadcast(&entry->gate.condition);
             pthread_mutex_unlock(&entry->gate.mutex);
         }
-
-        // pthread_mutex_unlock(&hash_lock);
         pthread_mutex_unlock(&space_lock);
-
 
         // Reset entry status on sign
         ms_pause(10);
@@ -452,7 +444,7 @@ void *generate_GUI( void *arg )
         }
         fflush(stdout);
         printf("\n");
-        ms_pause(50);
+        ms_pause(10);
         printf("\033[2J"); // Clear screen
     }
     return NULL;

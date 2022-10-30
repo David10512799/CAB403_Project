@@ -28,54 +28,58 @@ node_t *exit_list[EXITS];
 
 //Car Simulation
 
-//Preconditions: 
 //Reads the plate.txt file and returns the number of plates in the file.
-//Returns: plate_count
+//Preconditions: None
+//Postconditions: update plate_count with number of plates in plates.txt
 int get_plate_count();
 
-//Preconditions: 
 //Initialises the carpark in shared memory
-//Returns: true
+//Preconditions: None.
+//Postconditions: true
 bool init_carpark(shared_carpark_t* carpark);
 
-//Preconditions: 
-//Parameters: carpark_t
 //Initialises the carparks values in shared memory
+//Preconditions: Carpark shared memory has been initialised
+//Postconditions: Initialises carpark values in shared memory
 void init_carpark_values(carpark_t* park);
 
-//Preconditions: 
-//Parameters: char **plate_registry
 //Simulates the life-cycle of both a valid license plate and invalid license plate.
-//Returns: NULL
+//Preconditions: Shared memory has been initialised
+//Postconditions: returns NULL 
 void *sim_car(void *arg);
 
-//Preconditions: 
-//Parameters: char **plate_registry
 //Creates a new thread for each car waiting between 1 and 100ms
+//Preconditions: Shared memory has been initialised.
+//Postconditions: Thread is created with new car and life-cycle is simulated
 void start_car_simulation(char** plate_registry);
 
 //Preconditions: 
+//Postconditions:
 node_t *node_add(node_t *head, char *plate);
 
 //Preconditions: 
+//Postconditions:
 node_t *node_find_name(node_t *head, char *plate);
 
 //Preconditions: 
+//Postconditions:
 node_t *node_find_name_array(node_t **node_array, char *plate, int array_len);
 
 //Preconditions: 
+//Postconditions:
 node_t *node_delete(node_t *head, char *plate);
 
-//Preconditions: Shared memory has been initialised.
 //Monitors each gate and is triggered when the manager sets a gate to RAISING or LOWERING
+//Preconditions: Shared memory has been initialised.
+//Postconditions:
 void *monitor_gate(void *arg);
 
-//Preconditions: 
 //Simulates the temperature within each level of the carpark
-//Returns: NULL
+//Preconditions: 
+//Postconditions: NULL
 void *temp_sim(void *arg);
 
-//Preconditions: 
 //Generate normal temperature values
-//Returns: New temperature
+//Preconditions: 
+//Postconditions: New temperature
 int normal_temp(int current_temp);

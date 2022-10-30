@@ -31,28 +31,59 @@ struct htab
 };
 
 // HASHTABLE FUNCTIONS
+
+//Inserts plates from plates.txt into hashtable
+//Preconditions: The hashtable has been initialised
+//Postconditions: the hashtable has been filled with plates from the plates.txt file
 bool htab_insert_plates(htab_t *h);
+
+//Initialise hashtable
+//Preconditions: None
+//Postconditions: Initialises the hashtable in memory
 bool htab_init(htab_t *h, size_t n);
+
+//Calculate the offset for the bucket for key in hash table.
+//Preconditions: The hashtable has been initialised
+//Postconditions: The plate in the hashtable has been indexed
 size_t htab_index(htab_t *h, char *key);
+
+//Find pointer to head of list for key in hash table.
+//Preconditions: The hashtable has been initialised
+//Postconditions: returns the pointer to the head of the link list with given plate.
 car_t *htab_bucket(htab_t *h, char *key);
+
+//hashes each entry into hashtable
+//Preconditions: The hashtable has been initialised
+//Postconditions: hashes the plate in the hashtable
 size_t djb_hash(char *c);
+
+//Adds a character array into hashtable and hashes it
+//Preconditions: The hashtable has been initialised
+//Postconditions: The hashtable is updated with the plate
 bool htab_add(htab_t *h,char *plate);
-void htab_print(htab_t *h);
+
+//Searches the hashtable for the plate given
+//Preconditions: The hashtable has been initialised
+//Postconditions: true if plate is in hashtable, false if plate is not in hashtable
 bool htab_search_plate(htab_t *h, char *search);
+
+//Finds the corrosponding key to access a plate in the hashtable
+//Preconditions: The hashtable has been initialised
+//Postconditions: The key to a plate in the hashtable
 car_t *htab_find(htab_t *h, char *key);
+
+//Frees the memory taken by the hashtable
+//Preconditions: The hashtable has been initialised
+//Postconditions: The memory has been freed
 void htab_destroy(htab_t *h);
 
 
-void car_print(car_t *i)
-{
-    printf("plate=%s, in_carpark=%d",i->plate, i->in_carpark);
-}
 
 bool htab_init(htab_t *h, size_t n)
 {
-    // TODO: implement this function
     h->size = n;
-    h->buckets = calloc(n, sizeof(car_t*)); // array of pointers, therefore no matter how large table grows, same amount of memory
+    h->buckets = calloc(n, sizeof(car_t*));
+    // array of pointers, therefore no matter how large table grows, same amount of memory
     // calloc guarantess all that memory is initialised to zero
     return h->buckets != NULL;
 }
@@ -98,59 +129,28 @@ bool htab_add(htab_t *h, char *plate)
     return true;
 }
 
-void htab_print(htab_t *h)
-{
-    printf("hash table with %ld buckets\n", h->size);
-    for (size_t i = 0; i < h->size; ++i)
-    {
-        printf("bucket %ld: ", i + 1);
-        if (h->buckets[i] == NULL)
-        {
-            printf("empty\n");
-        }
-        else
-        {
-            for (car_t *j = h->buckets[i]; j != NULL; j = j->next)
-            {
-                car_print(j);
-                if (j->next != NULL)
-                {
-                    printf(" -> ");
-                }
-            }
-            printf("\n");
-        }
-    }
-}
-
 size_t djb_hash(char *s)
 {
     size_t hash = 5381;
     int c;
     while ((c = *s++) != '\0')
     {
-        // hash = hash * 33 + c
         hash = ((hash << 5) + hash) + c;
     }
     return hash;
 }
 
-// Calculate the offset for the bucket for key in hash table.
+
 size_t htab_index(htab_t *h, char *key)
 {
     return djb_hash(key) % h->size;
 }
 
-// Find pointer to head of list for key in hash table.
 car_t *htab_bucket(htab_t *h, char *key)
 {
     return h->buckets[htab_index(h, key)];
 }
 
-// Find an item for key in hash table.
-// pre: true
-// post: (return == NULL AND item not found)
-//       OR (strcmp(return->key, key) == 0)
 car_t *htab_find(htab_t *h, char *key)
 {
     for (car_t *i = htab_bucket(h, key); i != NULL; i = i->next)

@@ -24,11 +24,11 @@ pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hash_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t billing_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t alarm_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t space_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t revenue_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t hash_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t billing_cond = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t alarm_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_cond = PTHREAD_COND_INITIALIZER;
 
 
@@ -158,6 +158,16 @@ int main(void) {
     carpark.fd = -1;
     htab_destroy(&verified_cars);
 
+    pthread_mutex_destroy(&space_lock);
+    pthread_mutex_destroy(&hash_lock);
+    pthread_mutex_destroy(&alarm_lock);
+    pthread_mutex_destroy(&billing_lock);
+    pthread_mutex_destroy(&revenue_lock);
+    pthread_cond_destroy(&space_cond);
+    pthread_cond_destroy(&hash_cond);
+    pthread_cond_destroy(&alarm_cond);
+    pthread_cond_destroy(&billing_cond);
+    pthread_cond_destroy(&revenue_cond);
     return EXIT_SUCCESS;
 }
 

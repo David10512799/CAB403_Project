@@ -23,10 +23,7 @@ pthread_mutex_t entry_mutex[ENTRIES];
 pthread_cond_t entry_cond[ENTRIES];
 pthread_mutex_t exit_mutex[EXITS];
 pthread_cond_t exit_cond[EXITS];
-
-// pthread_mutex_t localGateMutex = PTHREAD_MUTEX_INITIALIZER;
-// pthread_cond_t localGate = PTHREAD_COND_INITIALIZER;
-
+pthread_mutex_t valid_lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct node node_t;
 struct node
@@ -64,29 +61,28 @@ void *monitor_gate(void *arg);
 
 void *temp_sim(void *arg);
 
+int normal_temp(int current_temp);
+
 int plate_count;
 
-int alarm_mode;
+int run_mode;
 
 int end_monitors = 0;
 
 int valid = 1;
 
-pthread_mutex_t valid_lock = PTHREAD_MUTEX_INITIALIZER;
-
 int main(int argc, char **argv){
 
-    // Generate Shared Memory
     if (argc == 1)
     {
-        alarm_mode = 0;
+        run_mode = 0;
     }
     else
     {
-        alarm_mode = (int)argv[1][0] - 48;
+        run_mode = (int)argv[1][0] - 48;
     }
-    printf("alarm mode is %d\n", alarm_mode);
-    
+
+    // Generate Shared Memory    
     if (!init_carpark(&carpark))
     {
         fprintf(stderr, "Error initialising shared memory: %s\n", strerror(errno));
@@ -154,12 +150,10 @@ int main(int argc, char **argv){
     }
     
 
-
+    // Generate cars until fire
     start_car_simulation(plate_registry);
 
-    //Cleanup protocol
-
-    printf("alarm was triggered and car gen has stopped\n");
+    // Wait for all cars to leave carpark and manager turns off alarms
     while(carpark.data->level[0].temperature.alarm == 1)
     {       
         ms_pause(10);
@@ -167,115 +161,88 @@ int main(int argc, char **argv){
 
     end_monitors = 1;
 
+    // Unmap and unlink shared memory and destory hash table
     munmap(&carpark.data, sizeof(carpark_t));
     shm_unlink(SHARE_NAME);
     carpark.data = NULL;
     carpark.fd = -1;
     htab_destroy(&verified_cars);
 
+    // Destory all local mutexes and conditions
+    for (int i = 0; i < ENTRIES; i++)
+    {
+        pthread_mutex_destroy(&entry_mutex[i]);
+        pthread_cond_destroy(&entry_cond[i]);
+    }
+    for (int i = 0; i < EXITS; i++)
+    {
+        pthread_mutex_destroy(&exit_mutex[i]);
+        pthread_cond_destroy(&exit_cond[i]);
+    }
+    pthread_mutex_destroy(&valid_lock);
+    
+
     return EXIT_SUCCESS;
 }
+int normal_temp(int current_temp){
+    int direction = rand() % 2;
 
+    if (direction)
+    {
+        if (current_temp < 30)
+        {
+            current_temp++;
+        } 
+        else
+        {
+            current_temp--;
+        }
+    }
+    else
+    {
+        if (current_temp > 15)
+        {
+            current_temp--;                
+        } 
+        else
+        {
+            current_temp++;
+        }
+    }
+    return current_temp;    
+    
+}
 void *temp_sim(void *arg){
     temperature_t *sensor = (temperature_t *)arg;
     int temp = 22;
     time_t start_time = time(NULL);
     while (!sensor->alarm)
     {
-        int direction = rand() % 2;
 
-        // Reasonable temp values? 15 to 30 celcius?
         // Randomly raise or decrease temp by 1 with a max of 30 and min of 15
-        switch (alarm_mode)
+        switch (run_mode)
         {
         case 0: // Normal temp generation
-            // printf("case 0\n");
-            if (direction)
-            {
-                if (temp < 30)
-                {
-                    temp++;
-                } 
-                else
-                {
-                    temp--;
-                }
-            }
-            else
-            {
-                if (temp > 15)
-                {
-                    temp--;                
-                } 
-                else
-                {
-                    temp++;
-                }
-            }
+            temp = normal_temp(temp);
             break;
         case 1: // Trigger alarm by rate of raise fire
-            // printf("case 1\n");
-            
             if ((start_time - time(NULL)) < -20) // After 20 seconds since starting
             {
                 temp += 15;
             }   
             else
             {
-                if (direction)
-                {
-                    if (temp < 30)
-                    {
-                        temp++;
-                    } 
-                    else
-                    {
-                        temp--;
-                    }
-                }
-                else
-                {
-                    if (temp > 15)
-                    {
-                        temp--;                
-                    } 
-                    else
-                    {
-                        temp++;
-                    }
-                }
-            }         
+                temp = normal_temp(temp);
+            }
             break;
         case 2: // Trigger alarm by fixed temperature fire
-            // printf("case 2\n");
             if ((start_time - time(NULL)) < -20)
             {
                 temp += 1;
             }
             else
             {
-                if (direction)
-                {
-                    if (temp < 30)
-                    {
-                        temp++;
-                    } 
-                    else
-                    {
-                        temp--;
-                    }
-                }
-                else
-                {
-                    if (temp > 15)
-                    {
-                        temp--;                
-                    } 
-                    else
-                    {
-                        temp++;
-                    }
-                }   
+                temp = normal_temp(temp);
             }
             break;
         case 3: // Trigger alarm by hardware failure
@@ -285,36 +252,13 @@ void *temp_sim(void *arg){
             }
             else
             {
-                if (direction)
-                {
-                    if (temp < 30)
-                    {
-                        temp++;
-                    } 
-                    else
-                    {
-                        temp--;
-                    }
-                }
-                else
-                {
-                    if (temp > 15)
-                    {
-                        temp--;                
-                    } 
-                    else
-                    {
-                        temp++;
-                    }
-                } 
+                temp = normal_temp(temp);
             }
-            // printf("case 3\n");
             break;
         default:
             break;
         }
         
-        // temp += 3;
         sensor->sensor = temp;
         // int rand_pause = (rand() % 5) + 1;
         ms_pause(100);

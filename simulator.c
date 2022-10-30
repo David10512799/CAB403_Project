@@ -59,7 +59,6 @@ int main(int argc, char **argv){
        pthread_cond_init(&exit_cond[i], NULL);
     }
     
-    
     plate_count = get_plate_count();
 
     // Create array and store plate char[] to it
@@ -283,7 +282,7 @@ void *sim_car(void *arg)
     pthread_setschedprio(pthread_self(), -20);
     char **plate_registry = (char**)arg;
     char plate[PLATE_LENGTH];
-    char *key;
+    char key[PLATE_LENGTH];
     char rand_plate[PLATE_LENGTH];
     car_t *car;
     node_t *in_line;
@@ -297,7 +296,7 @@ void *sim_car(void *arg)
             pthread_mutex_lock(&rand_lock);
             plate_number = (rand() % (plate_count));
             pthread_mutex_unlock(&rand_lock);
-            key = plate_registry[plate_number]; // random number between 0 and plate_count
+            memcpy(key, plate_registry[plate_number], PLATE_LENGTH); // random number between 0 and plate_count
             car = htab_find(&verified_cars, key);
             // lock all entry list mutexes
             for (int i = 0; i < ENTRIES; i++)
@@ -319,7 +318,7 @@ void *sim_car(void *arg)
             
         } while(car->in_carpark || in_line != NULL);
 
-        strcpy(plate, key);
+        memcpy(plate, key, PLATE_LENGTH);
 
         pthread_mutex_lock(&valid_lock);
         valid = 0;
@@ -354,9 +353,9 @@ void *sim_car(void *arg)
         pthread_mutex_lock(&valid_lock);
         valid = 1;
         pthread_mutex_unlock(&valid_lock);
-        strcpy(plate, rand_plate);
+        memcpy(plate, rand_plate, PLATE_LENGTH);
+
     }
-    printf("plate is %.6s\n", plate);
    
     pthread_mutex_lock(&rand_lock);
     int random_entry = rand() % ENTRIES;
@@ -379,7 +378,7 @@ void *sim_car(void *arg)
     pthread_mutex_unlock(&entry_mutex[random_entry]);
 
     // Give licence plate to LPR and signal manager to check it
-    printf("%s arrived at boomgate %d\n", plate, random_entry + 1);
+    printf("%.6s arrived at boomgate %d\n", plate, random_entry + 1);
     pthread_mutex_lock(&carpark.data->entrance[random_entry].LPR.mutex);
     string2charr(plate, carpark.data->entrance[random_entry].LPR.plate);
     pthread_mutex_unlock(&carpark.data->entrance[random_entry].LPR.mutex);
@@ -484,7 +483,7 @@ void *sim_car(void *arg)
     pthread_mutex_unlock(&exit_mutex[random_exit]);
     
     // Give licence plate to lpr
-    printf("%s arrived at boomgate %d\n", plate, random_exit + 1);
+    printf("%.6s arrived at boomgate %d\n", plate, random_exit + 1);
     pthread_mutex_lock(&carpark.data->exit[random_exit].LPR.mutex);
     while(!plates_equal(carpark.data->exit[random_exit].LPR.plate, EMPTY_LPR))
         pthread_cond_wait(&carpark.data->exit[random_exit].LPR.condition, &carpark.data->exit[random_exit].LPR.mutex);
@@ -510,7 +509,7 @@ void *sim_car(void *arg)
     pthread_cond_broadcast(&exit_cond[random_exit]);
 
     car = htab_find(&verified_cars, plate);
-    car->in_carpark = false;
+    car->in_carpark = false;    
 
     return NULL;
 }
@@ -603,7 +602,7 @@ int get_plate_count(){
         exit(1);
     }
     plate_count = 0;
-    char plate[PLATE_LENGTH];
+    char plate[PLATE_LENGTH + 1];
     while( fscanf(input_file, "%s", plate) != EOF )
     {
         plate_count++;

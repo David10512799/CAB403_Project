@@ -268,7 +268,7 @@ void *monitor_entry(void *arg)
         string2charr(entry->LPR.plate, plate);
         char space;
 
-        printf("%.6s\n", plate);
+        // printf("%.6s\n", plate);
         // pthread_mutex_lock(&hash_lock);
 
         if ( htab_search_plate(&verified_cars, plate) )
@@ -450,7 +450,7 @@ void *generate_GUI( void *arg )
         }
         fflush(stdout);
         printf("\n");
-        ms_pause(10);
+        ms_pause(50);
         printf("\033[2J"); // Clear screen
     }
     return NULL;

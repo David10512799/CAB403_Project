@@ -105,7 +105,6 @@ int main(void) {
                 empty++;
         }
     }
-    printf("levels are apparently empty\n");
     // Turn off the alarms
     for( int i = 0; i < LEVELS; i++){
         carpark.data->level[i].temperature.alarm = 0;
@@ -118,8 +117,7 @@ int main(void) {
     munmap(&carpark.data, sizeof(carpark_t));
     carpark.data = NULL;
     carpark.fd = -1;
-
-    printf("return\n");
+    htab_destroy(&verified_cars);
 
     return EXIT_SUCCESS;
 }

@@ -105,20 +105,18 @@ int main(void){
     // Wait for manager to turn off alarms once all cars have exited;
     while(carpark.data->level[0].temperature.alarm == 1)
     {
-        printf("waiting\n");
-        sleep(5);
+        ms_pause(10);
     }
 
     // Allow threads to terminate
-    for( int i = 0; i < ENTRIES; i++){
-        pthread_join(entry_gates[i], NULL);
-        pthread_join(signs[i], NULL);
-    }
+    // for( int i = 0; i < ENTRIES; i++){
+    //     pthread_join(entry_gates[i], NULL);
+    //     pthread_join(signs[i], NULL);
+    // }
 
-    for( int i = 0; i < EXITS; i++){
-        pthread_join(exit_gates[i], NULL);
-    }
-    printf("after joining threads\n");
+    // for( int i = 0; i < EXITS; i++){
+    //     pthread_join(exit_gates[i], NULL);
+    // }
 
     // Unmap memory before the program closes
     munmap(&carpark.data, sizeof(carpark_t));

@@ -7,7 +7,7 @@
 #include <string.h>   // for strcmp()
 #include <pthread.h>
 #include <sys/time.h>
-#define PLATE_LENGTH 7
+#define PLATE_LENGTH 6
 #endif
 // An car inserted into a hash table.
 // As hash collisions can occur, multiple cars can exist in one bucket.
@@ -45,7 +45,7 @@ void htab_destroy(htab_t *h);
 
 void car_print(car_t *i)
 {
-    printf("plate=%s, in_carpark=%d",i->plate, i->in_carpark);
+    printf("plate=%.6s, in_carpark=%d",i->plate, i->in_carpark);
 }
 
 bool htab_init(htab_t *h, size_t n)
@@ -67,9 +67,11 @@ bool htab_insert_plates(htab_t *h)
         exit(1);
     }
 
-    char plate[PLATE_LENGTH];
-    while( fscanf(input_file, "%s", plate) != EOF )
+    char scan[7];
+    while( fscanf(input_file, "%s", scan) != EOF )
     {
+        char plate[6];
+        string2charr(scan,plate);
         htab_add(h, plate);
     }
 
@@ -89,7 +91,7 @@ bool htab_add(htab_t *h, char *plate)
         return false;
     }
 
-    sprintf(new_car->plate, plate);
+    string2charr(plate, new_car->plate);
     new_car->in_carpark = false;
     new_car->next = h->buckets[index];
 
@@ -126,10 +128,9 @@ void htab_print(htab_t *h)
 size_t djb_hash(char *s)
 {
     size_t hash = 5381;
-    int c;
-    while ((c = *s++) != '\0')
+    for(int i = 0; i < PLATE_LENGTH; i++)
     {
-        // hash = hash * 33 + c
+        int c = (int)s[i];
         hash = ((hash << 5) + hash) + c;
     }
     return hash;
@@ -155,7 +156,7 @@ car_t *htab_find(htab_t *h, char *key)
 {
     for (car_t *i = htab_bucket(h, key); i != NULL; i = i->next)
     {
-        if (strcmp(i->plate, key) == 0)
+        if (strncmp(i->plate, key, 6) == 0)
         { // found the key
             return i;
         }
@@ -169,7 +170,7 @@ bool htab_search_plate(htab_t *h, char *search)
     for (size_t i = 0; i < h->size; ++i)
     {
         for (car_t *bucket = h->buckets[i]; bucket != NULL; bucket = bucket->next) {
-            if (strcmp(bucket->plate, search) == 0)
+            if (strncmp(bucket->plate, search, 6) == 0)
             {
                 retVal = true;
             } 
@@ -197,3 +198,4 @@ void htab_destroy(htab_t *h)
     h->buckets = NULL;
     h->size = 0;
 }
+

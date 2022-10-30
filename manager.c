@@ -20,8 +20,6 @@ volatile int end_monitors = 0;
 
 int main(void) {
 
-    
-
     // Initialise hashtable and insert plates from "plates.txt"
 
     if (!htab_init(&verified_cars, buckets))
@@ -32,7 +30,6 @@ int main(void) {
     }
 
     htab_insert_plates(&verified_cars);
-
 
     // Get shared memory object
     shared_carpark_t carpark;
@@ -176,7 +173,6 @@ void *monitor_level(void *arg)
         int current_level = car->current_level;
 
         int index = lpr->id;
-        // printf("Index %d %d\n", index, lpr.id);
         // Corrected from indexing value to actual level
         int level = index + 1; 
 
@@ -329,7 +325,6 @@ void *monitor_entry(void *arg)
     return NULL;
 }
 
-// Find the level with the most spots remaining or return FULL
 char find_space()
 {
     char retVal = FULL;
@@ -452,7 +447,7 @@ void *generate_GUI( void *arg )
     }
     return NULL;
 }
-// Returns the meaning of the gate status characters stored in shared memory
+
 char *gate_status(char code)
 {
     switch((int)code)

@@ -1,35 +1,4 @@
-#include <pthread.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-#include "carpark.h"
-
-#include <stdio.h>
-
-#define MEDIAN_WINDOW 5
-#define TEMPCHANGE_WINDOW 30
-
-typedef struct alarm alarm_t;
-struct alarm {
-    temperature_t *temperature;
-    pthread_mutex_t *mutex;
-    pthread_cond_t *condition;
-    gate_t *gate;
-    sign_t *sign;
-    int *status;
-};
-
-static void *tempmonitor(void *arg);
-static void *open_gate(void *arg);
-static void *display_evac(void *arg);
-static void read_temps(temperature_t *temperature, int16_t *temp, int *count);
-static void generate_smooth(int16_t *raw_temp, int16_t *smooth_temp, int16_t *median_list, int *raw_count, int *smooth_count);
-static void detect_fire(int16_t *smooth_temp, int *smooth_count, alarm_t *alarm);
-static void detect_hardware_failure(int16_t *raw_temp, int raw_count, alarm_t *alarm, int *consecutive_count);
+#include "firealarm.h"
 
 int main(void){
 

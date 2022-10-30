@@ -1,20 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <inttypes.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <assert.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "simulator.h"
 
-#include "carpark.h"
-#include "carlist.h"
-
-extern int errno;
 
 shared_carpark_t carpark;
 htab_t verified_cars;
@@ -24,44 +9,6 @@ pthread_cond_t entry_cond[ENTRIES];
 pthread_mutex_t exit_mutex[EXITS];
 pthread_cond_t exit_cond[EXITS];
 pthread_mutex_t valid_lock = PTHREAD_MUTEX_INITIALIZER;
-
-typedef struct node node_t;
-struct node
-{
-    char *plate;
-    node_t *next;
-};
-
-node_t *entry_list[ENTRIES];
-node_t *exit_list[EXITS];
-
-//Car Simulation
-
-void generate_plates(int arg, char ** argg);
-
-int get_plate_count();
-
-bool init_carpark(shared_carpark_t* carpark);
-
-void init_carpark_values(carpark_t* park);
-
-void *sim_car(void *arg);
-
-void start_car_simulation(char** verified_plates);
-
-node_t *node_add(node_t *head, char *plate);
-
-node_t *node_find_name(node_t *head, char *plate);
-
-node_t *node_find_name_array(node_t **node_array, char *plate, int array_len);
-
-node_t *node_delete(node_t *head, char *plate);
-
-void *monitor_gate(void *arg);
-
-void *temp_sim(void *arg);
-
-int normal_temp(int current_temp);
 
 int plate_count;
 
@@ -386,7 +333,6 @@ void *sim_car(void *arg)
             {
                 pthread_mutex_unlock(&entry_mutex[i]);
             } 
-            // printf("invalid dupe\n");
         } while ( car != NULL || in_line != NULL);
         pthread_mutex_lock(&valid_lock);
         valid = 1;
@@ -413,7 +359,6 @@ void *sim_car(void *arg)
         pthread_cond_wait(&entry_cond[random_entry], &entry_mutex[random_entry]);
 
     } 
-    // printf("%s passed signal loop\n", plate);
     pthread_mutex_unlock(&entry_mutex[random_entry]);
 
     // Wait at boomgate until it is fully closed

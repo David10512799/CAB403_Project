@@ -1,24 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-#include <pthread.h>
-#include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <assert.h>
- 
-#include "carpark.h"
-#include "carlist.h"
-
-
-size_t buckets = 40;
-htab_t verified_cars;
-volatile int *alarm_on;
-volatile int end_monitors = 0;
+#include "manager.h"
 
 pthread_mutex_t space_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t revenue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -31,35 +11,14 @@ pthread_cond_t hash_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t billing_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t alarm_cond = PTHREAD_COND_INITIALIZER;
 
-
 volatile int freespaces[LEVELS];
 volatile float total_revenue = 0.00;
-
-typedef struct level_LPR_monitor level_LPR_monitor_t;
-struct level_LPR_monitor
-{
-    int id;
-    LPR_t *level_LPR;
-};
-
-
-//Function declarations
-void *generate_GUI(void *arg); 
-char *gate_status(char code); void open_gate(); void close_gate(); 
-void generate_bill(char *plate);
-void generate_car(char *plate, int level);
-char find_space();
-long long duration_ms(struct timeval start);
-void *delete_car(void *arg);
-bool string_equal(char *a, char *b);
-
-// Monitors
-void *monitor_entry(void *arg); void *monitor_exit(void *arg); void *monitor_level(void *arg);
-void *monitor_gate(void *arg);
+size_t buckets = 40;
+htab_t verified_cars;
+volatile int *alarm_on;
+volatile int end_monitors = 0;
 
 int main(void) {
-
-    
 
     // Initialise hashtable and insert plates from "plates.txt"
 
@@ -71,7 +30,6 @@ int main(void) {
     }
 
     htab_insert_plates(&verified_cars);
-
 
     // Get shared memory object
     shared_carpark_t carpark;
@@ -225,7 +183,6 @@ void *monitor_level(void *arg)
         int current_level = car->current_level;
 
         int index = lpr->id;
-        // printf("Index %d %d\n", index, lpr.id);
         // Corrected from indexing value to actual level
         int level = index + 1; 
 
@@ -378,7 +335,6 @@ void *monitor_entry(void *arg)
     return NULL;
 }
 
-// Find the level with the most spots remaining or return FULL
 char find_space()
 {
     char retVal = FULL;
@@ -501,7 +457,7 @@ void *generate_GUI( void *arg )
     }
     return NULL;
 }
-// Returns the meaning of the gate status characters stored in shared memory
+
 char *gate_status(char code)
 {
     switch((int)code)

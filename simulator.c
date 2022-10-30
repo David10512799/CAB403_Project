@@ -167,7 +167,6 @@ void *temp_sim(void *arg){
     time_t start_time = time(NULL);
     while (!sensor->alarm)
     {
-
         // Randomly raise or decrease temp by 1 with a max of 30 and min of 15
         switch (run_mode)
         {
@@ -236,7 +235,7 @@ void *monitor_gate(void *arg)
         {
             pthread_cond_wait(&gate->condition, &gate->mutex);
         }
-        // delay for 10ms * TIMEX
+        // delay for 10ms
         ms_pause(10);
         
         char status = gate->status;
@@ -251,8 +250,7 @@ void *monitor_gate(void *arg)
         }
 
         // signal condition variable and unlock mutex
-        pthread_cond_broadcast(&gate->condition); // Signal manager it set to open or closed
-        // pthread_cond_broadcast(&localGate); // Signal car to check boomgate status
+        pthread_cond_broadcast(&gate->condition); // Signal manager and car gate set to open or closed
         pthread_mutex_unlock(&gate->mutex);
     }
 
@@ -271,12 +269,11 @@ void start_car_simulation(char **plate_registry){
         pthread_t car_sim;
         pthread_create(&car_sim, NULL, sim_car, plate_registry);
 
-        ms_pause(rand_wait); // Random time between 1 and 100             
+        ms_pause(rand_wait);           
 
     }    
 }
 
-// create thread
 void *sim_car(void *arg)
 {  
     pthread_setschedprio(pthread_self(), -20);
@@ -296,9 +293,8 @@ void *sim_car(void *arg)
             pthread_mutex_lock(&rand_lock);
             plate_number = (rand() % (plate_count));
             pthread_mutex_unlock(&rand_lock);
-            memcpy(key, plate_registry[plate_number], PLATE_LENGTH); // random number between 0 and plate_count
+            memcpy(key, plate_registry[plate_number], PLATE_LENGTH);
             car = htab_find(&verified_cars, key);
-            // lock all entry list mutexes
             for (int i = 0; i < ENTRIES; i++)
             {
                 pthread_mutex_lock(&entry_mutex[i]);
@@ -308,15 +304,14 @@ void *sim_car(void *arg)
             {
                 pthread_mutex_unlock(&entry_mutex[i]);
             }          
-            // printf("valid dupe\n");
             gen_pause++;
-            if (gen_pause > 100)
+            if (gen_pause > 100) // Slow down plate gen if checked 100 plates (give the plates a chance to leave)
             {
                 ms_pause(10);
                 gen_pause -= 10;
             }
             
-        } while(car->in_carpark || in_line != NULL);
+        } while(car->in_carpark || in_line != NULL); // Check entry lines and in carpark for duplicate plate
 
         memcpy(plate, key, PLATE_LENGTH);
 
@@ -329,7 +324,7 @@ void *sim_car(void *arg)
         do
         {     
             pthread_mutex_lock(&rand_lock);
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 3; i++) // Construct random plate
             {
                 rand_plate[i] = (rand() % 10) + 48;
             }
@@ -338,7 +333,6 @@ void *sim_car(void *arg)
                 rand_plate[i] = (rand() % 26) + 65;
             }
             pthread_mutex_unlock(&rand_lock);
-            rand_plate[6] = '\0';
             car = htab_find(&verified_cars, rand_plate);
             for (int i = 0; i < ENTRIES; i++)
             {
@@ -364,7 +358,6 @@ void *sim_car(void *arg)
     
     // Add car to queue
     pthread_mutex_lock(&entry_mutex[random_entry]);
-    // node_t *new_head = node_add(entry_list[random_entry], plate);
     entry_list[random_entry] = node_add(entry_list[random_entry], plate);;   
     printf("%.6s joined the line for entry %d\n", entry_list[random_entry]->plate, random_entry + 1);
     pthread_mutex_unlock(&entry_mutex[random_entry]); 
@@ -549,19 +542,13 @@ node_t *node_find_name(node_t *head, char *plate)
 }
 
 node_t *node_find_name_array(node_t **node_array, char *plate, int array_len){
-    // printf("searching all lists once\n");
     for (int i = 0; i < array_len; i++)
     {
-        // printf("no way does it get stuck here right?\n");
         if (node_find_name(node_array[i], plate) != NULL)
         {
-            // printf("%.6s\n", plate);
-            // printf("found dupe\n");
             return node_array[i];
         }
-        // printf("passed node find if\n");
     }
-    // printf("returned NULL\n");
     return NULL;    
 }
 
@@ -570,17 +557,11 @@ node_t *node_delete(node_t *head, char *plate)
 {
     if (strcmp(head->plate, plate) == 0)
     {
-        node_t* newHead = head->next;
-        // printf("node is end and start so NULL right? -> %p\n", newHead);
-        // if (head != NULL)
-        // {
-        //     printf("nothing should be waiting on %.6s\n", head->plate);
-        // }        
+        node_t* newHead = head->next;       
         free(head);
         return newHead;
     }
     node_t *del = node_find_name(head, plate);
-    // printf("this should always be NULL -> %p\n", del->next);
     node_t *temp = head;
     for (; head != NULL; head = head->next)
     {
@@ -641,8 +622,6 @@ bool init_carpark(shared_carpark_t* carpark)
 
     return true;
 }
-
-
 
 void init_carpark_values(carpark_t* park)
 {

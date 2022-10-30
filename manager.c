@@ -144,7 +144,6 @@ void *monitor_gate(void *arg)
         while(gate->status != OPEN)
             pthread_cond_wait(&gate->condition, &gate->mutex);
 
-        // delay for 20ms * TIMEX
         pthread_mutex_unlock(&gate->mutex);
         if (!*alarm_on)
         {
@@ -267,9 +266,6 @@ void *monitor_entry(void *arg)
         char plate[6];
         string2charr(entry->LPR.plate, plate);
         char space;
-
-        // printf("%.6s\n", plate);
-        // pthread_mutex_lock(&hash_lock);
 
         if ( htab_search_plate(&verified_cars, plate) )
         {
@@ -486,4 +482,3 @@ long long duration_ms(struct timeval start) {
 
     return (((long long)end.tv_sec)*1000)+(end.tv_usec/1000) - (((long long)start.tv_sec)*1000)+(start.tv_usec/1000);
 }
-

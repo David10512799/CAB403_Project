@@ -77,12 +77,6 @@ car_t *htab_find(htab_t *h, char *key);
 //Postconditions: The memory has been freed
 void htab_destroy(htab_t *h);
 
-
-void car_print(car_t *i)
-{
-    printf("plate=%.6s, in_carpark=%d",i->plate, i->in_carpark);
-}
-
 bool htab_init(htab_t *h, size_t n)
 {
     h->size = n;
@@ -116,8 +110,6 @@ bool htab_insert_plates(htab_t *h)
 
 bool htab_add(htab_t *h, char *plate)
 {
-    // TODO: implement this function
-
     size_t index = htab_index(h, plate);
 
     car_t *new_car = malloc(sizeof(car_t));
@@ -186,7 +178,6 @@ bool htab_search_plate(htab_t *h, char *search)
 
 void htab_destroy(htab_t *h)
 {
-    // free linked lists
     for (size_t i = 0; i < h->size; ++i)
     {
         car_t *bucket = h->buckets[i];
@@ -198,7 +189,6 @@ void htab_destroy(htab_t *h)
         }
     }
 
-    // free buckets array
     free(h->buckets);
     h->buckets = NULL;
     h->size = 0;

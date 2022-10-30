@@ -74,3 +74,8 @@ void *monitor_gate(void *arg);
 //Simulates the temperature within each level of the carpark
 //Returns: NULL
 void *temp_sim(void *arg);
+
+//Preconditions: 
+//Generate normal temperature values
+//Returns: New temperature
+int normal_temp(int current_temp);

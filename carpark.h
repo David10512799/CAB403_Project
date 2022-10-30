@@ -45,7 +45,7 @@ struct LPR
 {
     pthread_mutex_t mutex;
     pthread_cond_t condition;
-    char plate[7];
+    char plate[6];
 };
 
 typedef struct sign sign_t;
@@ -110,15 +110,26 @@ void ms_pause(int time)
     usleep(TIMEX * time * 1000);
 }
 
-void write_string(LPR_t *lpr, char plate[6])
+
+// like strcpy
+void string2charr(char *src, char *dest)
 {
-    for (int i = 0; i < 6; i++)
+    for(int i = 0; i < 6; i++)
     {
-        lpr->plate[i] = plate[i];
+        dest[i] = src[i];
     }
 }
 
-bool string_equal(char *a, char *b)
+
+bool plates_equal(char *a, char *b)
 {
-    return strcmp(a, b) == 0;
+    bool retVal = true;
+    for(int i = 0; i < 6; i++)
+    {
+        if (a[i] != b[i])
+        {
+            retVal = false;
+        }
+    }
+    return retVal;
 }

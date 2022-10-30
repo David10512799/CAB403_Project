@@ -171,11 +171,13 @@ void *monitor_level(void *arg)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&lpr->level_LPR->mutex);
-        while (string_equal(lpr->level_LPR->plate, EMPTY_LPR))
+        while (plates_equal(lpr->level_LPR->plate, EMPTY_LPR))
             pthread_cond_wait(&lpr->level_LPR->condition, &lpr->level_LPR->mutex);
 
-        char *plate = lpr->level_LPR->plate;
         
+        char plate[6];
+        string2charr(lpr->level_LPR->plate, plate);
+
         // get pointer to car
         car_t *car = htab_find(&verified_cars, plate);
 
@@ -204,7 +206,7 @@ void *monitor_level(void *arg)
 
         // reset LPR value and unlock mutex
         ms_pause(10);
-        strcpy(lpr->level_LPR->plate, EMPTY_LPR);
+        string2charr(EMPTY_LPR, lpr->level_LPR->plate);
         pthread_mutex_unlock(&lpr->level_LPR->mutex);
         pthread_cond_broadcast(&lpr->level_LPR->condition);
     }
@@ -219,12 +221,13 @@ void *monitor_exit(void *arg)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&exit->LPR.mutex);
-        while (string_equal(exit->LPR.plate, EMPTY_LPR))
+        while (plates_equal(exit->LPR.plate, EMPTY_LPR))
             pthread_cond_wait(&exit->LPR.condition, &exit->LPR.mutex);
 
         // Read plate
-        char *plate = exit->LPR.plate;
 
+        char plate[6];
+        string2charr(exit->LPR.plate, plate);
         generate_bill(plate);
 
 
@@ -242,7 +245,7 @@ void *monitor_exit(void *arg)
         }
     
         // unlock lpr mutex and reset LPR
-        strcpy(exit->LPR.plate, EMPTY_LPR);
+        string2charr(EMPTY_LPR, exit->LPR.plate);
         pthread_mutex_unlock(&exit->LPR.mutex);
         pthread_cond_signal(&exit->LPR.condition);
     }
@@ -257,12 +260,16 @@ void *monitor_entry(void *arg)
     {
         // lock lpr mutex and wait for signal
         pthread_mutex_lock(&entry->LPR.mutex);
-        while (string_equal(entry->LPR.plate, EMPTY_LPR))
+        while (plates_equal(entry->LPR.plate, EMPTY_LPR))
             pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
         
         // Read plate and determine if allowed in.
-        char *plate = entry->LPR.plate;
+        char plate[6];
+        string2charr(entry->LPR.plate, plate);
         char space;
+
+        printf("%.6s\n", plate);
+        // pthread_mutex_lock(&hash_lock);
 
         if ( htab_search_plate(&verified_cars, plate) )
         {
@@ -274,7 +281,6 @@ void *monitor_entry(void *arg)
         {
             space = DENIED;
         }
-
         // Display entry status on sign
         pthread_mutex_lock(&entry->sign.mutex);
 
@@ -309,7 +315,7 @@ void *monitor_entry(void *arg)
         pthread_mutex_unlock(&entry->sign.mutex);
 
         // reset lpr unlock lpr mutex
-        strcpy(entry->LPR.plate, EMPTY_LPR);
+        string2charr(EMPTY_LPR, entry->LPR.plate);
         pthread_mutex_unlock(&entry->LPR.mutex);
     }
     // Take care of any cars that were generated before the fire alarms came on but hadn't reached the LPR yet
@@ -318,9 +324,9 @@ void *monitor_entry(void *arg)
     while (!end_monitors)
     {
         pthread_mutex_lock(&entry->LPR.mutex);
-        while (string_equal(entry->LPR.plate, EMPTY_LPR) && !end_monitors)
+        while (plates_equal(entry->LPR.plate, EMPTY_LPR) && !end_monitors)
             pthread_cond_wait(&entry->LPR.condition, &entry->LPR.mutex);
-        strcpy(entry->LPR.plate, EMPTY_LPR);
+        string2charr(EMPTY_LPR, entry->LPR.plate);
         pthread_mutex_unlock(&entry->LPR.mutex);
     }
 
@@ -413,7 +419,7 @@ void *generate_GUI( void *arg )
         {
             printf("%d\t", i + 1); // level no. corrected from indexing value
             printf("%d/%d\t\t", CARS_PER_LEVEL - freespaces[i], CARS_PER_LEVEL); // capacity X out of Y
-            printf("%s\t\t", data->level[i].LPR.plate); // Level LPR reading
+            printf("%.6s\t\t", data->level[i].LPR.plate); // Level LPR reading
             printf("%d\t\t", data->level[i].temperature.sensor);  // Level temperature reading
             printf("\n");
         }
@@ -426,7 +432,7 @@ void *generate_GUI( void *arg )
         {
             printf("%d\t", i + 1); // entry no. corrected from indexing value
             printf("%s\t", gate_status(data->entrance[i].gate.status)); // state of entry gate
-            printf("%s\t\t", data->entrance[i].LPR.plate); // Entry LPR reading
+            printf("%.6s\t\t", data->entrance[i].LPR.plate); // Entry LPR reading
             printf("%c\t", data->entrance[i].sign.display); // Entry information sign display value
             printf("\n");
         }
@@ -439,7 +445,7 @@ void *generate_GUI( void *arg )
         {
             printf("%d\t", i + 1); // exit no. corrected from indexing value
             printf("%s\t", gate_status(data->exit[i].gate.status)); // state of exit gate
-            printf("%s\t", data->exit[i].LPR.plate); // Exit LPR reading
+            printf("%.6s\t", data->exit[i].LPR.plate); // Exit LPR reading
             printf("\n");
         }
         fflush(stdout);

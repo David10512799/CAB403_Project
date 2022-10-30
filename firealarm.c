@@ -1,4 +1,3 @@
-#include "carpark.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,6 +5,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#include "carpark.h"
 
 #include <stdio.h>
 

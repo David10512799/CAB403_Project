@@ -53,33 +53,37 @@ void *sim_car(void *arg);
 //Postconditions: Thread is created with new car and life-cycle is simulated
 void start_car_simulation(char** plate_registry);
 
-//Preconditions: 
-//Postconditions:
+// Add a new node to the start of the linked list containing the plate value provided.
+//Preconditions: None.
+//Postconditions: Returns the new head of the the linked list
 node_t *node_add(node_t *head, char *plate);
 
-//Preconditions: 
-//Postconditions:
+// Find the node containing the plate provided.
+//Preconditions: None.
+//Postconditions: Returns the node that contains the plate if it exists, or NULL if it doesn't.
 node_t *node_find_name(node_t *head, char *plate);
 
-//Preconditions: 
-//Postconditions:
+// Find a node containing the plate provided within an array of linked lists. 
+//Preconditions: None.
+//Postconditions: Returns the node that contains the plate if it exists, or NULL if it doesn't.
 node_t *node_find_name_array(node_t **node_array, char *plate, int array_len);
 
-//Preconditions: 
-//Postconditions:
+// Delete a node from the linked list if it exists.
+//Preconditions: None.
+//Postconditions: Returns the new head of the linked list.
 node_t *node_delete(node_t *head, char *plate);
 
 //Monitors each gate and is triggered when the manager sets a gate to RAISING or LOWERING
 //Preconditions: Shared memory has been initialised.
-//Postconditions:
+//Postconditions: Returns NULL
 void *monitor_gate(void *arg);
 
 //Simulates the temperature within each level of the carpark
-//Preconditions: 
-//Postconditions: NULL
+//Preconditions: Shared memory is initialised.
+//Postconditions: returns NULL once alarms are triggered
 void *temp_sim(void *arg);
 
 //Generate normal temperature values
-//Preconditions: 
-//Postconditions: New temperature
+//Preconditions: None.
+//Postconditions: New temperature is returned.
 int normal_temp(int current_temp);
